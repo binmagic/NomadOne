@@ -30,8 +30,8 @@ export function resolveEffectiveBaseUrl(baseUrl?: string | null) {
 
 export function readProviderCredentialsFromRequest(request: NextRequest): RequestProviderCredentials {
   return {
-    apiKey: request.headers.get("x-mxpage-api-key")?.trim() || request.headers.get(["x", String.fromCharCode(109, 120, 105, 110, 115, 112, 105, 114, 101), "api", "key"].join("-"))?.trim() || undefined,
-    baseUrl: request.headers.get("x-mxpage-base-url")?.trim() || request.headers.get(["x", String.fromCharCode(109, 120, 105, 110, 115, 112, 105, 114, 101), "base", "url"].join("-"))?.trim() || undefined,
+    apiKey: request.headers.get("x-nomadone-api-key")?.trim() || request.headers.get(["x", String.fromCharCode(109, 120, 105, 110, 115, 112, 105, 114, 101), "api", "key"].join("-"))?.trim() || undefined,
+    baseUrl: request.headers.get("x-nomadone-base-url")?.trim() || request.headers.get(["x", String.fromCharCode(109, 120, 105, 110, 115, 112, 105, 114, 101), "base", "url"].join("-"))?.trim() || undefined,
   };
 }
 

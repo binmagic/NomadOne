@@ -8,13 +8,13 @@ import { BrandConsole } from "@/components/shared/brand-console";
 import { ChunkReloadGuard } from "@/components/shared/chunk-reload-guard";
 
 export const metadata: Metadata = {
-  title: "MxPage",
+  title: "NomadOne",
   icons: {
     icon: "/favicon.ico",
     shortcut: "/favicon.ico",
     apple: "/brand-icon.ico",
   },
-  description: "MxPage AI product page and social content generation workspace.",
+  description: "NomadOne AI product page and social content generation workspace.",
 };
 
 export default function RootLayout({

@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 
-const printedFlag = "__mxPageBrandConsolePrinted";
+const printedFlag = "__nomadOneBrandConsolePrinted";
 
 export function BrandConsole() {
   useEffect(() => {
@@ -11,7 +11,7 @@ export function BrandConsole() {
     scopedWindow[printedFlag] = true;
 
     console.log(
-      "%cMxPage",
+      "%cNomadOne",
       "font-size:22px;font-weight:800;color:#111827;line-height:1.8;",
     );
     console.log(
@@ -23,7 +23,7 @@ export function BrandConsole() {
       "font-size:12px;color:#64748b;line-height:1.8;",
     );
     console.log(
-      "%c项目地址：https://github.com/ziguishian/mxpage",
+      "%c项目地址：https://github.com/binmagic/NomadOne",
       "font-size:12px;color:#e11d48;line-height:1.8;",
     );
   }, []);

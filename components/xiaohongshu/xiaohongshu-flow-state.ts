@@ -36,10 +36,10 @@ export type XiaohongshuDraft = {
   updatedAt: string;
 };
 
-const storageKey = "mxpage:xiaohongshu-flow:v1";
+const storageKey = "nomadone:xiaohongshu-flow:v1";
 const legacyBrandPrefix = String.fromCharCode(98, 97, 110, 97, 110, 97, 45, 109, 97, 108, 108);
 const legacyStorageKey = `${legacyBrandPrefix}:xiaohongshu-flow:v1`;
-const imageDbName = "mxpage:xiaohongshu-assets:v1";
+const imageDbName = "nomadone:xiaohongshu-assets:v1";
 const legacyImageDbName = `${legacyBrandPrefix}:xiaohongshu-assets:v1`;
 const imageStoreName = "assets";
 

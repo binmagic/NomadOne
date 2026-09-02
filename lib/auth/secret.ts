@@ -5,7 +5,7 @@
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
-const FALLBACK_SECRET = "MxPage-local-secret";
+const FALLBACK_SECRET = "NomadOne-local-secret";
 
 export function getAppSecret() {
   const value = process.env[["APP", "SECRET"].join("_")];

@@ -1,7 +1,7 @@
 /**
  * [INPUT]: 依赖 /api/users、UserFormDialog 与 ConfirmDialog
  * [OUTPUT]: 对外提供 UserManagementList，完成成员增删改与启停
- * [POS]: components/users 的主工作台，被 settings/users 页面挂载
+ * [POS]: components/users 的主工作台，自带卡片标题行与新增按钮，被 settings/users 页面挂进 Card
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
@@ -15,6 +15,7 @@ import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { UserFormDialog, type UserFormValues } from "@/components/users/user-form-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatDate } from "@/lib/utils";
 import type { UserRole } from "@/types/domain";
 
@@ -163,9 +164,14 @@ export function UserManagementList({ initialUsers }: { initialUsers: ManagedUser
   };
 
   return (
-    <div className="space-y-5">
-      <div className="flex justify-end">
+    <>
+      <CardHeader className="flex-row items-center justify-between gap-4">
+        <div className="space-y-1.5">
+          <CardTitle>用户列表</CardTitle>
+          <CardDescription>系统用户优先展示，其余按创建时间排列。</CardDescription>
+        </div>
         <Button
+          className="shrink-0"
           onClick={() => {
             setFormError(null);
             setFormState({ mode: "create", values: emptyFormValues });
@@ -174,8 +180,9 @@ export function UserManagementList({ initialUsers }: { initialUsers: ManagedUser
           <Plus className="mr-2 h-4 w-4" />
           新增用户
         </Button>
-      </div>
+      </CardHeader>
 
+      <CardContent>
       {sortedUsers.length === 0 ? (
         <div className="rounded-3xl border border-dashed border-border p-8 text-sm text-muted-foreground dark:border-white/10 dark:bg-white/[0.03]">
           还没有用户。请先完成系统初始化。
@@ -262,6 +269,7 @@ export function UserManagementList({ initialUsers }: { initialUsers: ManagedUser
           })}
         </div>
       )}
+      </CardContent>
 
       <UserFormDialog
         open={Boolean(formState)}
@@ -315,6 +323,6 @@ export function UserManagementList({ initialUsers }: { initialUsers: ManagedUser
         }}
         onConfirm={handleDelete}
       />
-    </div>
+    </>
   );
 }

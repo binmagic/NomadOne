@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 
 type ThemeMode = "light" | "dark";
 
-const STORAGE_KEY = "mxpage-theme";
+const STORAGE_KEY = "nomadone-theme";
 const LEGACY_STORAGE_KEY = "banana-mall-theme";
 
 function applyTheme(theme: ThemeMode) {

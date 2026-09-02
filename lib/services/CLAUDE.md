@@ -6,7 +6,7 @@
 成员清单
 project-service.ts: 项目 CRUD 与所有权断言，listProjects 排除系统任务平台
 provider-service.ts: Provider 按用户隔离；isActive 的 updateMany 必须 where userId；getProviderAdapter 读 ALS
-workflow-task-service.ts: 每用户一个 __mxpage_system_task__ 占位项目；后台任务 withUser + provider credentials 双 ALS
+workflow-task-service.ts: 每用户一个 __nomadone_system_task__ 占位项目；后台任务 withUser + provider credentials 双 ALS
 task-service.ts: getOwnedTask 经 project.userId 过滤；内部 getTask 仍按 id
 generation-service.ts / planner-service.ts / analysis-service.ts / xiaohongshu-service.ts: 通过 getProviderAdapter 间接收到当前用户
 export-service.ts: 导出前由路由层 assertProjectOwned

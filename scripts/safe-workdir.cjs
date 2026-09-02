@@ -3,7 +3,7 @@ const os = require("os");
 const path = require("path");
 
 function getSafeAliasPath() {
-  return path.join(os.tmpdir(), "MxPage-safe-workdir");
+  return path.join(os.tmpdir(), "NomadOne-safe-workdir");
 }
 
 function ensureSafeWorkdir(targetDir) {

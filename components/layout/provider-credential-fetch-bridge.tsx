@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 
-export const CLIENT_PROVIDER_STORAGE_KEY = "mxpage:provider-credentials:v1";
+export const CLIENT_PROVIDER_STORAGE_KEY = "nomadone:provider-credentials:v1";
 
 type StoredProviderCredentials = {
   apiKey?: string;
@@ -47,10 +47,10 @@ export function ProviderCredentialFetchBridge() {
       const headers = new Headers(init.headers ?? (input instanceof Request ? input.headers : undefined));
 
       if (credentials.apiKey) {
-        headers.set("x-mxpage-api-key", credentials.apiKey);
+        headers.set("x-nomadone-api-key", credentials.apiKey);
       }
       if (credentials.baseUrl) {
-        headers.set("x-mxpage-base-url", credentials.baseUrl);
+        headers.set("x-nomadone-base-url", credentials.baseUrl);
       }
 
       return originalFetch(input, { ...init, headers });

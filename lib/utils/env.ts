@@ -2,11 +2,11 @@ import { z } from "zod";
 
 const envSchema = z.object({
   DATABASE_URL: z.string().default("file:./dev.db"),
-  APP_SECRET: z.string().min(12).default("MxPage-local-secret"),
+  APP_SECRET: z.string().min(12).default("NomadOne-local-secret"),
   STORAGE_ROOT: z.string().default("./storage"),
   APP_RUNTIME: z.enum(["web", "desktop"]).default("web"),
   APP_USER_DATA_DIR: z.string().optional(),
-  NEXT_PUBLIC_APP_NAME: z.string().default("MxPage"),
+  NEXT_PUBLIC_APP_NAME: z.string().default("NomadOne"),
   LOCK_BASE_URL: z.string().trim().url().optional(),
   FORCED_API_BASE: z.string().trim().url().optional(),
   FORCED_API_BASE_URL: z.string().trim().url().optional(),

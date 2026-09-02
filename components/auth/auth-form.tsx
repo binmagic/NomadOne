@@ -21,7 +21,7 @@ type AuthFormMode = "login" | "setup" | "register";
 
 const copy: Record<AuthFormMode, { title: string; description: string; submit: string; endpoint: string }> = {
   login: {
-    title: "登录 MxPage",
+    title: "登录 NomadOne",
     description: "使用本地账号进入你的商品图文工作台。",
     submit: "登录",
     endpoint: "/api/auth/login",
@@ -80,7 +80,7 @@ export function AuthForm({ mode, allowRegister = false }: { mode: AuthFormMode; 
   return (
     <Card>
       <CardHeader>
-        <p className="text-xs font-medium uppercase tracking-[0.26em] text-slate-500">MxPage</p>
+        <p className="text-xs font-medium uppercase tracking-[0.26em] text-slate-500">NomadOne</p>
         <CardTitle className="text-3xl font-semibold tracking-[-0.03em] text-slate-950 dark:text-white">
           {meta.title}
         </CardTitle>

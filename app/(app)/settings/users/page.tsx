@@ -8,9 +8,8 @@
 import { redirect } from "next/navigation";
 
 import { UserManagementList } from "@/components/users/user-management-list";
-import { NoticeCard } from "@/components/shared/notice-card";
 import { PageHeader } from "@/components/shared/page-header";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { getSessionUser } from "@/lib/auth/session";
 import { listUsers } from "@/lib/auth/user-service";
 
@@ -35,20 +34,8 @@ export default async function UsersPage() {
         description="维护可登录本工作区的账号。系统初始化时创建的管理员不允许修改、禁用或删除。"
       />
 
-      <NoticeCard
-        variant="info"
-        title="系统用户已锁定"
-        description="首次 /setup 创建的 OWNER 是系统初始化用户，作为工作区保底账号保留。普通成员可以新增、编辑、禁用和删除。"
-      />
-
       <Card>
-        <CardHeader>
-          <CardTitle>用户列表</CardTitle>
-          <CardDescription>系统用户优先展示，其余按创建时间排列。</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <UserManagementList initialUsers={users} />
-        </CardContent>
+        <UserManagementList initialUsers={users} />
       </Card>
     </div>
   );

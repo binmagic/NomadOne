@@ -63,7 +63,7 @@ type BatchItemStatus = {
   projectId?: string | null;
 };
 
-const systemProjectPlatform = "__mxpage_system_task__";
+const systemProjectPlatform = "__nomadone_system_task__";
 
 function requireTaskUserId() {
   const userId = getRequestUserId();
@@ -97,7 +97,7 @@ async function ensureSystemTaskProject(userId: string) {
 
   return prisma.project.create({
     data: {
-      name: "MxPage 系统任务",
+      name: "NomadOne 系统任务",
       platform: systemProjectPlatform,
       style: "system",
       description: "内部后台任务占位项目，不在历史记录中展示。",

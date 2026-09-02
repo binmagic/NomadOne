@@ -92,7 +92,7 @@ function getRuntimeEnv(runtime, port) {
     DATABASE_URL: toSqliteFileUrl(runtime.databasePath),
     STORAGE_ROOT: runtime.storageDir,
     APP_SECRET: runtime.appSecret,
-    NEXT_PUBLIC_APP_NAME: process.env.NEXT_PUBLIC_APP_NAME || "MxPage",
+    NEXT_PUBLIC_APP_NAME: process.env.NEXT_PUBLIC_APP_NAME || "NomadOne",
   };
 }
 
@@ -224,7 +224,7 @@ async function startNextServer(runtime) {
   serverProcess.on("exit", (code) => {
     if (!isQuitting && code !== 0) {
       dialog.showErrorBox(
-        "MxPage 启动失败",
+        "NomadOne 启动失败",
         serverErrors || `内置服务异常退出，退出码：${code}`
       );
       app.quit();
@@ -248,7 +248,7 @@ function createSplashWindow() {
     show: false,
     center: true,
     backgroundColor: "#111827",
-    title: "MxPage",
+    title: "NomadOne",
     icon: getWindowIcon(),
     webPreferences: {
       contextIsolation: true,
@@ -266,7 +266,7 @@ function createSplashWindow() {
           http-equiv="Content-Security-Policy"
           content="default-src 'self' 'unsafe-inline' data:;"
         />
-        <title>MxPage</title>
+        <title>NomadOne</title>
         <style>
           * { box-sizing: border-box; }
           html, body {
@@ -339,7 +339,7 @@ function createSplashWindow() {
       <body>
         <div class="wrap">
           <div class="card">
-            <div class="title">MxPage</div>
+            <div class="title">NomadOne</div>
             <div class="desc">AI e-commerce detail page generation and editing workspace</div>
             <div class="status" id="status">正在启动应用...</div>
             <div class="bar"><div></div></div>
@@ -387,7 +387,7 @@ function createMainWindow(url) {
     show: false,
     autoHideMenuBar: true,
     backgroundColor: "#f5f5f5",
-    title: "MxPage",
+    title: "NomadOne",
     icon: getWindowIcon(),
     webPreferences: {
       preload: path.join(__dirname, "preload.cjs"),
@@ -477,7 +477,7 @@ app.on("activate", async () => {
 app.whenReady().then(() => {
   bootstrapDesktopApp().catch((error) => {
     dialog.showErrorBox(
-      "MxPage 启动失败",
+      "NomadOne 启动失败",
       error instanceof Error ? error.message : "未知错误"
     );
     app.quit();

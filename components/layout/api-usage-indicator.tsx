@@ -1,3 +1,10 @@
+/**
+ * [INPUT]: 依赖 /api/monitor/usage 的 24h 汇总
+ * [OUTPUT]: 对外提供 ApiUsageIndicator，顶栏用量胶囊
+ * [POS]: layout 的监控入口附属指示器，嵌在 AppShell 的 API 监控按钮内，暗色必须比父按钮更实，避免 white/8 叠 black/30 糊掉
+ * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+ */
+
 "use client";
 
 import { useEffect, useState } from "react";
@@ -55,10 +62,10 @@ export function ApiUsageIndicator({ className }: { className?: string }) {
     <span className={cn("inline-flex items-center gap-2", className)}>
       <span
         className={cn(
-          "inline-flex h-7 items-center rounded-full px-2.5 text-xs font-medium",
+          "inline-flex h-7 items-center rounded-full border px-2.5 text-xs font-medium",
           alerting
-            ? "bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-300"
-            : "bg-slate-100 text-slate-700 dark:bg-white/8 dark:text-slate-200",
+            ? "border-amber-200 bg-amber-100 text-amber-700 dark:border-amber-400/40 dark:bg-amber-400/20 dark:text-amber-100"
+            : "border-slate-200/80 bg-slate-100 text-slate-700 dark:border-white/20 dark:bg-zinc-800 dark:text-white",
         )}
       >
         <Icon className="mr-1.5 h-3.5 w-3.5" />

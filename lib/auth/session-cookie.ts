@@ -7,7 +7,7 @@
 
 import type { UserRole } from "@/types/domain";
 
-export const SESSION_COOKIE_NAME = "mxpage_session";
+export const SESSION_COOKIE_NAME = "nomadone_session";
 export const SESSION_TTL_SECONDS = 7 * 24 * 60 * 60;
 
 export type SessionPayload = {

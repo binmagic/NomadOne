@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 
-const RELOAD_KEY = "MxPage-chunk-reload-once";
+const RELOAD_KEY = "NomadOne-chunk-reload-once";
 
 function shouldReloadForChunkError(message: string) {
   return /chunkloaderror|loading chunk [\w-]+ failed|failed to fetch dynamically imported module/i.test(message);

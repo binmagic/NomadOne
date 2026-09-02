@@ -1,6 +1,6 @@
-# MxPage
+# NomadOne
 
-MxPage 是由灵矩绘境出品并维护的 AI 商品图文工作台，支持电商详情页生成、小红书图文规划与生成、批量创建、图像编辑和私有化部署。
+NomadOne 是由灵矩绘境出品并维护的 AI 商品图文工作台，支持电商详情页生成、小红书图文规划与生成、批量创建、图像编辑和私有化部署。
 
 ## 核心能力
 
@@ -33,7 +33,7 @@ DATABASE_URL="file:./dev.db"
 APP_SECRET="replace-with-your-own-long-secret"
 STORAGE_ROOT="./storage"
 APP_RUNTIME="web"
-NEXT_PUBLIC_APP_NAME="MxPage"
+NEXT_PUBLIC_APP_NAME="NomadOne"
 
 # 可选：私有化部署时锁定统一 OpenAI 兼容网关。
 LOCK_BASE_URL="https://your-private-openai-compatible-gateway/v1"
@@ -51,6 +51,6 @@ LOCK_BASE_URL="https://your-private-openai-compatible-gateway/v1"
 
 ## 品牌
 
-产品名：MxPage
+产品名：NomadOne
 
 出品与维护：灵矩绘境

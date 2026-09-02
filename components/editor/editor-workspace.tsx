@@ -635,7 +635,7 @@ export function EditorWorkspace({ project: initialProject }: EditorWorkspaceProp
                     </section>
                   ))}
                   <div className="bg-white px-4 py-4 text-center text-[10px] font-medium uppercase tracking-[0.18em] text-slate-400">
-                    Powered by MxPage
+                    Powered by NomadOne
                   </div>
                 </div>
               </div>

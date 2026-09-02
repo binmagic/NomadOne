@@ -2,7 +2,7 @@ export function ThemeScript() {
   const script = `
     (function () {
       try {
-        var key = 'mxpage-theme';
+        var key = 'nomadone-theme';
         var legacyKey = 'banana-mall-theme';
         var stored = localStorage.getItem(key) || localStorage.getItem(legacyKey);
         var theme = stored === 'dark' || stored === 'light'

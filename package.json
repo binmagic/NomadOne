@@ -1,9 +1,9 @@
 {
-  "name": "mxpage",
+  "name": "nomadone",
   "version": "0.1.0",
   "private": false,
-  "description": "MxPage AI e-commerce detail page generation and editing workspace",
-  "author": "灵矩绘境 · MxPage",
+  "description": "NomadOne AI e-commerce detail page generation and editing workspace",
+  "author": "灵矩绘境 · NomadOne",
   "main": "desktop/main.cjs",
   "scripts": {
     "dev": "node ./scripts/run-next-safe.cjs dev",
@@ -60,8 +60,8 @@
     "typescript": "^5.8.3"
   },
   "build": {
-    "appId": "com.mxpage.app",
-    "productName": "MxPage",
+    "appId": "com.nomadone.app",
+    "productName": "NomadOne",
     "asar": false,
     "asarUnpack": [
       ".next-desktop/standalone/node_modules/.prisma/**/*",
@@ -102,7 +102,7 @@
           ]
         }
       ],
-      "artifactName": "mxpage-${version}.${ext}"
+      "artifactName": "NomadOne-${version}.${ext}"
     },
     "nsis": {
       "oneClick": false,
