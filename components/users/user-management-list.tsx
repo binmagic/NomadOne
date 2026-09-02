@@ -1,7 +1,7 @@
 /**
  * [INPUT]: 依赖 /api/users、UserFormDialog 与 ConfirmDialog
  * [OUTPUT]: 对外提供 UserManagementList，完成成员增删改与启停
- * [POS]: components/users 的主工作台，自带卡片标题行与新增按钮，被 settings/users 页面挂进 Card
+ * [POS]: components/users 的主工作台，自带卡片标题行与新增按钮，被 settings/users 页面挂进 Card；接口校验失败优先展示字段中文，不回笼统的参数校验失败
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
@@ -40,6 +40,14 @@ const emptyFormValues: UserFormValues = {
   displayName: "",
   password: "",
 };
+
+function readApiError(payload: { error?: { message?: string; details?: unknown } | null }, fallback: string) {
+  const details = payload.error?.details as { fieldErrors?: Record<string, string[] | undefined> } | undefined;
+  const firstFieldError = details?.fieldErrors
+    ? Object.values(details.fieldErrors).find((messages) => messages?.[0])?.[0]
+    : undefined;
+  return firstFieldError ?? payload.error?.message ?? fallback;
+}
 
 export function UserManagementList({ initialUsers }: { initialUsers: ManagedUser[] }) {
   const [users, setUsers] = useState(initialUsers);
@@ -86,7 +94,7 @@ export function UserManagementList({ initialUsers }: { initialUsers: ManagedUser
         });
         const payload = await response.json();
         if (!response.ok || !payload.success) {
-          throw new Error(payload.error?.message ?? "用户创建失败");
+          throw new Error(readApiError(payload, "用户创建失败"));
         }
         upsertUser(payload.data.user);
         toast.success("用户已创建");
@@ -101,7 +109,7 @@ export function UserManagementList({ initialUsers }: { initialUsers: ManagedUser
         });
         const payload = await response.json();
         if (!response.ok || !payload.success) {
-          throw new Error(payload.error?.message ?? "用户更新失败");
+          throw new Error(readApiError(payload, "用户更新失败"));
         }
         upsertUser(payload.data.user);
         toast.success("用户已更新");

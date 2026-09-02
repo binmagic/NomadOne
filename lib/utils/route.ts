@@ -1,3 +1,10 @@
+/**
+ * [INPUT]: 依赖 NextResponse、ZodError、AuthError、api 信封
+ * [OUTPUT]: 对外提供 ok / fail / handleRouteError
+ * [POS]: lib/utils 的 API 出口闸门，被 app/api/* 的 catch 消费；校验失败回第一条字段中文，而不是笼统的参数校验失败
+ * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+ */
+
 import { NextResponse } from "next/server";
 import { ZodError } from "zod";
 
@@ -52,7 +59,11 @@ function mapProviderError(error: Error) {
 
 export function handleRouteError(error: unknown) {
   if (error instanceof ZodError) {
-    return fail("VALIDATION_ERROR", "请求参数校验失败", error.flatten(), 400);
+    const flattened = error.flatten();
+    const firstFieldError = Object.values(flattened.fieldErrors)
+      .flat()
+      .find((message): message is string => Boolean(message));
+    return fail("VALIDATION_ERROR", flattened.formErrors[0] ?? firstFieldError ?? "请求参数校验失败", flattened, 400);
   }
 
   if (error instanceof AuthError) {
