@@ -16,7 +16,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { UserProfile } from "@/types/domain";
 
-const appName = "MxPage";
+const appName = "NomadOne";
 
 export function AppShell({ children, user }: { children: React.ReactNode; user: UserProfile }) {
   return (
