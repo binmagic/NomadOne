@@ -1,0 +1,15 @@
+# lib/services/
+> L2 | 父级: /CLAUDE.md
+
+业务服务全部按 userId 隔离。列表/创建显式传 userId；按 id 读取走 assertProjectOwned 或 findFirst({ id, userId })。别人的资源返回 not found。
+
+成员清单
+project-service.ts: 项目 CRUD 与所有权断言，listProjects 排除系统任务平台
+provider-service.ts: Provider 按用户隔离；isActive 的 updateMany 必须 where userId；getProviderAdapter 读 ALS
+workflow-task-service.ts: 每用户一个 __mxpage_system_task__ 占位项目；后台任务 withUser + provider credentials 双 ALS
+task-service.ts: getOwnedTask 经 project.userId 过滤；内部 getTask 仍按 id
+generation-service.ts / planner-service.ts / analysis-service.ts / xiaohongshu-service.ts: 通过 getProviderAdapter 间接收到当前用户
+export-service.ts: 导出前由路由层 assertProjectOwned
+provider-runtime.ts: 请求级 API Key ALS，与用户 ALS 正交，不存密钥
+
+[PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

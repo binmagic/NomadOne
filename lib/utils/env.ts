@@ -10,6 +10,7 @@ const envSchema = z.object({
   LOCK_BASE_URL: z.string().trim().url().optional(),
   FORCED_API_BASE: z.string().trim().url().optional(),
   FORCED_API_BASE_URL: z.string().trim().url().optional(),
+  ALLOW_REGISTER: z.string().optional(),
 });
 
 export const env = envSchema.parse({
@@ -22,4 +23,9 @@ export const env = envSchema.parse({
   LOCK_BASE_URL: process.env.LOCK_BASE_URL,
   FORCED_API_BASE: process.env.FORCED_API_BASE,
   FORCED_API_BASE_URL: process.env.FORCED_API_BASE_URL,
+  ALLOW_REGISTER: process.env.ALLOW_REGISTER,
 });
+
+export function isRegisterAllowed() {
+  return env.ALLOW_REGISTER === "true";
+}

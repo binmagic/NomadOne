@@ -2,9 +2,10 @@ import { NextRequest } from "next/server";
 import { z } from "zod";
 
 import { xiaohongshuPlanSchema } from "@/lib/ai/schemas/xiaohongshu";
+import { withAuthedUser } from "@/lib/auth/session";
 import { generateXiaohongshuImages } from "@/lib/services/xiaohongshu-service";
-import { handleRouteError, ok } from "@/lib/utils/route";
 import { withProviderCredentials } from "@/lib/services/provider-runtime";
+import { handleRouteError, ok } from "@/lib/utils/route";
 
 export const maxDuration = 180;
 
@@ -29,16 +30,18 @@ const requestSchema = z.object({
 });
 
 export async function POST(request: NextRequest) {
-  return withProviderCredentials(request, async () => {
-    try {
-    const input = requestSchema.parse(await request.json());
-    const images = await generateXiaohongshuImages(input.plan, input.referenceImages ?? [], {
-      imageAspectRatio: input.imageAspectRatio,
-      pageNumber: input.pageNumber,
+  try {
+    return await withAuthedUser(async () => {
+      return withProviderCredentials(request, async () => {
+        const input = requestSchema.parse(await request.json());
+        const images = await generateXiaohongshuImages(input.plan, input.referenceImages ?? [], {
+          imageAspectRatio: input.imageAspectRatio,
+          pageNumber: input.pageNumber,
+        });
+        return ok(images);
+      });
     });
-    return ok(images);
-    } catch (error) {
-      return handleRouteError(error);
-    }
-  });
+  } catch (error) {
+    return handleRouteError(error);
+  }
 }

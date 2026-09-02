@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { ZodError } from "zod";
 
+import { AuthError } from "@/lib/auth/errors";
 import { apiError, apiSuccess } from "@/lib/utils/api";
 
 export function ok<T>(data: T, init?: ResponseInit) {
@@ -52,6 +53,10 @@ function mapProviderError(error: Error) {
 export function handleRouteError(error: unknown) {
   if (error instanceof ZodError) {
     return fail("VALIDATION_ERROR", "请求参数校验失败", error.flatten(), 400);
+  }
+
+  if (error instanceof AuthError) {
+    return fail(error.code, error.message, null, error.status);
   }
 
   if (error instanceof Error) {

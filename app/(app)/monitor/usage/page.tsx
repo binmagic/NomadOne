@@ -1,5 +1,6 @@
 import { Activity, AlertTriangle, Clock3, Coins, Filter, ImageIcon, RefreshCcw, Sparkles } from "lucide-react";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 
 import { ClearUsageButton } from "@/components/monitor/clear-usage-button";
 import { DeleteUsageEntryButton } from "@/components/monitor/delete-usage-entry-button";
@@ -7,6 +8,7 @@ import { PageHeader } from "@/components/shared/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { prisma } from "@/lib/db/prisma";
+import { getSessionUser } from "@/lib/auth/session";
 import { getApiUsageSummary, humanizeApiMonitorMessage, type ApiUsageEntry } from "@/lib/monitor/api-usage";
 
 export const dynamic = "force-dynamic";
@@ -63,6 +65,8 @@ export default async function ApiUsageMonitorPage({
 }: {
   searchParams?: Record<string, string | string[] | undefined>;
 }) {
+  const user = await getSessionUser();
+  if (!user) redirect("/login");
   const hours = Number(readSingle(searchParams?.hours) ?? "24");
   const projectId = readSingle(searchParams?.projectId) ?? "all";
   const category = readSingle(searchParams?.category) ?? "all";
@@ -88,7 +92,7 @@ export default async function ApiUsageMonitorPage({
 
   const projects = allProjectIds.length
     ? await prisma.project.findMany({
-        where: { id: { in: [...new Set(allProjectIds)] } },
+        where: { id: { in: [...new Set(allProjectIds)] }, userId: user.id },
         select: { id: true, name: true },
       })
     : [];

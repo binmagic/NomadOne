@@ -1,12 +1,15 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 
 import { ExportPanel } from "@/components/export/export-panel";
 import { PageHeader } from "@/components/shared/page-header";
 import { ProjectOutputConfigCard } from "@/components/shared/project-output-config-card";
+import { getSessionUser } from "@/lib/auth/session";
 import { getProjectDetail } from "@/lib/services/project-service";
 
 export default async function ProjectExportPage({ params }: { params: { id: string } }) {
-  const project = await getProjectDetail(params.id);
+  const user = await getSessionUser();
+  if (!user) redirect("/login");
+  const project = await getProjectDetail(params.id, user.id);
   if (!project) notFound();
 
   return (

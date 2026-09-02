@@ -3,10 +3,7 @@ import { Toaster } from "sonner";
 
 import "./globals.css";
 
-import { AppShell } from "@/components/layout/app-shell";
-import { ProviderCredentialFetchBridge } from "@/components/layout/provider-credential-fetch-bridge";
 import { ThemeScript } from "@/components/layout/theme-script";
-import { BackToTopButton } from "@/components/shared/back-to-top-button";
 import { BrandConsole } from "@/components/shared/brand-console";
 import { ChunkReloadGuard } from "@/components/shared/chunk-reload-guard";
 
@@ -31,9 +28,7 @@ export default function RootLayout({
         <ThemeScript />
         <ChunkReloadGuard />
         <BrandConsole />
-        <ProviderCredentialFetchBridge />
-        <AppShell>{children}</AppShell>
-        <BackToTopButton />
+        {children}
         <Toaster richColors position="top-right" />
       </body>
     </html>

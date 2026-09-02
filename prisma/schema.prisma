@@ -66,6 +66,24 @@ enum TaskStatus {
   CANCELED
 }
 
+enum UserRole {
+  OWNER
+  MEMBER
+}
+
+model User {
+  id           String           @id @default(cuid())
+  username     String           @unique
+  displayName  String
+  passwordHash String
+  passwordSalt String
+  role         UserRole         @default(MEMBER)
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+  projects     Project[]
+  providers    ProviderConfig[]
+}
+
 model Project {
   id            String           @id @default(cuid())
   name          String
@@ -74,12 +92,16 @@ model Project {
   style         String
   description   String?
   modelSnapshot Json?
+  userId        String?
+  user          User?            @relation(fields: [userId], references: [id], onDelete: SetNull)
   createdAt     DateTime         @default(now())
   updatedAt     DateTime         @updatedAt
   assets        ProductAsset[]
   analysis      ProductAnalysis?
   sections      PageSection[]
   tasks         GenerationTask[]
+
+  @@index([userId])
 }
 
 model ProviderConfig {
@@ -88,9 +110,13 @@ model ProviderConfig {
   baseUrl         String
   apiKeyEncrypted String
   isActive        Boolean        @default(false)
+  userId          String?
+  user            User?          @relation(fields: [userId], references: [id], onDelete: SetNull)
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
   models          ModelProfile[]
+
+  @@index([userId])
 }
 
 model ModelProfile {

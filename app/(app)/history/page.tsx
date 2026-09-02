@@ -1,12 +1,17 @@
+import { redirect } from "next/navigation";
+
 import { RecentProjectList } from "@/components/projects/recent-project-list";
 import { PageHeader } from "@/components/shared/page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { getSessionUser } from "@/lib/auth/session";
 import { listProjects } from "@/lib/services/project-service";
 
 export const dynamic = "force-dynamic";
 
 export default async function HistoryPage() {
-  const projects = await listProjects();
+  const user = await getSessionUser();
+  if (!user) redirect("/login");
+  const projects = await listProjects(user.id);
 
   return (
     <div className="space-y-8">

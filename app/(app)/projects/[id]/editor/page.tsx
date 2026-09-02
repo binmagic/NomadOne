@@ -1,14 +1,17 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 
 import { EditorWorkspace } from "@/components/editor/editor-workspace";
 import { PageHeader } from "@/components/shared/page-header";
 import { ProjectOutputConfigCard } from "@/components/shared/project-output-config-card";
 import { Button } from "@/components/ui/button";
+import { getSessionUser } from "@/lib/auth/session";
 import { getProjectDetail } from "@/lib/services/project-service";
 
 export default async function ProjectEditorPage({ params }: { params: { id: string } }) {
-  const project = await getProjectDetail(params.id);
+  const user = await getSessionUser();
+  if (!user) redirect("/login");
+  const project = await getProjectDetail(params.id, user.id);
   if (!project) notFound();
 
   return (

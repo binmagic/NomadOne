@@ -3,6 +3,7 @@ import path from "path";
 import { Prisma } from "@prisma/client";
 
 import type { XiaohongshuPlan } from "@/lib/ai/schemas/xiaohongshu";
+import { withUser, getRequestUserId } from "@/lib/auth/request-user";
 import { prisma } from "@/lib/db/prisma";
 import { analyzeProject } from "@/lib/services/analysis-service";
 import { editSectionImage, generateSectionImage } from "@/lib/services/generation-service";
@@ -24,6 +25,7 @@ import { saveUploadAsset } from "@/lib/storage/asset-manager";
 import { normalizeContentLanguage, type ContentLanguage } from "@/lib/utils/content-language";
 import { env } from "@/lib/utils/env";
 import { sanitizeFileName } from "@/lib/utils/files";
+import type { UserProfile } from "@/types/domain";
 
 export type BatchCreateFileInput = {
   fileName: string;
@@ -63,6 +65,20 @@ type BatchItemStatus = {
 
 const systemProjectPlatform = "__mxpage_system_task__";
 
+function requireTaskUserId() {
+  const userId = getRequestUserId();
+  if (!userId) {
+    throw new Error("Missing user context.");
+  }
+  return userId;
+}
+
+function runAuthedBackground(user: UserProfile, credentials: RequestProviderCredentials, handler: () => Promise<void>) {
+  runTaskInBackground(async () => {
+    await withUser(user, () => runWithProviderCredentials(credentials, handler));
+  });
+}
+
 function storageRoot() {
   return path.resolve(process.cwd(), env.STORAGE_ROOT);
 }
@@ -71,9 +87,9 @@ function taskInputDir(taskId: string) {
   return path.join(storageRoot(), "task-inputs", taskId);
 }
 
-async function ensureSystemTaskProject() {
+async function ensureSystemTaskProject(userId: string) {
   const existing = await prisma.project.findFirst({
-    where: { platform: systemProjectPlatform },
+    where: { platform: systemProjectPlatform, userId },
     orderBy: { createdAt: "asc" },
   });
 
@@ -85,6 +101,7 @@ async function ensureSystemTaskProject() {
       platform: systemProjectPlatform,
       style: "system",
       description: "内部后台任务占位项目，不在历史记录中展示。",
+      userId,
     },
   });
 }
@@ -164,12 +181,15 @@ async function runBatchCreateTask(taskId: string, files: StoredBatchFile[], auto
       await updateTaskProgress(taskId, { currentStep: "creating_project", items });
 
       try {
-        const project = await createProject({
-          name: buildBatchProjectName(file.fileName, index),
-          platform: "general_ecommerce",
-          style: "generic_clean",
-          description: "由批量创建自动生成",
-        });
+        const project = await createProject(
+          {
+            name: buildBatchProjectName(file.fileName, index),
+            platform: "general_ecommerce",
+            style: "generic_clean",
+            description: "由批量创建自动生成",
+          },
+          requireTaskUserId(),
+        );
         projectIds.push(project.id);
         items = patchBatchStatus(items, index, { projectId: project.id, message: "正在上传主商品图" });
         await updateTaskProgress(taskId, { currentStep: "uploading_asset", items, projectIds });
@@ -262,8 +282,12 @@ async function runBatchCreateTask(taskId: string, files: StoredBatchFile[], auto
   }
 }
 
-export async function createBatchCreateTask(input: BatchCreateTaskInput, credentials: RequestProviderCredentials) {
-  const systemProject = await ensureSystemTaskProject();
+export async function createBatchCreateTask(
+  input: BatchCreateTaskInput,
+  credentials: RequestProviderCredentials,
+  user: UserProfile,
+) {
+  const systemProject = await ensureSystemTaskProject(user.id);
   const filesMeta = input.files.map((file) => ({ fileName: file.fileName, mimeType: file.mimeType }));
   const task = await createTask({
     projectId: systemProject.id,
@@ -292,7 +316,7 @@ export async function createBatchCreateTask(input: BatchCreateTaskInput, credent
     },
   });
 
-  runTaskInBackground(() => runWithProviderCredentials(credentials, () => runBatchCreateTask(task.id, storedFiles, input.autoGenerateImages === true)));
+  runAuthedBackground(user, credentials, () => runBatchCreateTask(task.id, storedFiles, input.autoGenerateImages === true));
   return getTask(task.id);
 }
 
@@ -383,7 +407,11 @@ async function runTranslatePageTask(taskId: string, input: TranslatePageTaskInpu
   }
 }
 
-export async function createTranslatePageTask(input: TranslatePageTaskInput, credentials: RequestProviderCredentials) {
+export async function createTranslatePageTask(
+  input: TranslatePageTaskInput,
+  credentials: RequestProviderCredentials,
+  user: UserProfile,
+) {
   const task = await createTask({
     projectId: input.projectId,
     taskType: "TRANSLATE_PAGE",
@@ -402,7 +430,7 @@ export async function createTranslatePageTask(input: TranslatePageTaskInput, cre
     },
   });
 
-  runTaskInBackground(() => runWithProviderCredentials(credentials, () => runTranslatePageTask(task.id, input)));
+  runAuthedBackground(user, credentials, () => runTranslatePageTask(task.id, input));
   return getTask(task.id);
 }
 
@@ -490,8 +518,12 @@ async function runXiaohongshuGenerateTask(taskId: string, input: XiaohongshuGene
   }
 }
 
-export async function createXiaohongshuGenerateTask(input: XiaohongshuGenerateTaskInput, credentials: RequestProviderCredentials) {
-  const systemProject = await ensureSystemTaskProject();
+export async function createXiaohongshuGenerateTask(
+  input: XiaohongshuGenerateTaskInput,
+  credentials: RequestProviderCredentials,
+  user: UserProfile,
+) {
+  const systemProject = await ensureSystemTaskProject(user.id);
   const imageAspectRatio = input.imageAspectRatio ?? "3:4";
   const task = await createTask({
     projectId: systemProject.id,
@@ -513,12 +545,18 @@ export async function createXiaohongshuGenerateTask(input: XiaohongshuGenerateTa
     },
   });
 
-  runTaskInBackground(() => runWithProviderCredentials(credentials, () => runXiaohongshuGenerateTask(task.id, input)));
+  runAuthedBackground(user, credentials, () => runXiaohongshuGenerateTask(task.id, input));
   return getTask(task.id);
 }
 
-export async function retryWorkflowTask(taskId: string, credentials: RequestProviderCredentials) {
-  const task = await getTask(taskId);
+export async function retryWorkflowTask(
+  taskId: string,
+  credentials: RequestProviderCredentials,
+  user: UserProfile,
+) {
+  const task = await prisma.generationTask.findFirst({
+    where: { id: taskId, project: { userId: user.id } },
+  });
   if (!task) {
     throw new Error("Task not found.");
   }
@@ -543,32 +581,28 @@ export async function retryWorkflowTask(taskId: string, credentials: RequestProv
   if (task.taskType === "BATCH_CREATE") {
     const files = Array.isArray(input.files) ? (input.files as StoredBatchFile[]) : [];
     const autoGenerateImages = input.autoGenerateImages === true;
-    runTaskInBackground(() => runWithProviderCredentials(credentials, () => runBatchCreateTask(taskId, files, autoGenerateImages)));
+    runAuthedBackground(user, credentials, () => runBatchCreateTask(taskId, files, autoGenerateImages));
     return getTask(taskId);
   }
 
   if (task.taskType === "TRANSLATE_PAGE") {
-    runTaskInBackground(() =>
-      runWithProviderCredentials(credentials, () =>
-        runTranslatePageTask(taskId, {
-          projectId: String(input.projectId ?? task.projectId),
-          targetLanguage: normalizeContentLanguage(input.targetLanguage),
-          referenceAssetIds: Array.isArray(input.referenceAssetIds) ? (input.referenceAssetIds as string[]) : [],
-        }),
-      ),
+    runAuthedBackground(user, credentials, () =>
+      runTranslatePageTask(taskId, {
+        projectId: String(input.projectId ?? task.projectId),
+        targetLanguage: normalizeContentLanguage(input.targetLanguage),
+        referenceAssetIds: Array.isArray(input.referenceAssetIds) ? (input.referenceAssetIds as string[]) : [],
+      }),
     );
     return getTask(taskId);
   }
 
   if (task.taskType === "XHS_GENERATE") {
-    runTaskInBackground(() =>
-      runWithProviderCredentials(credentials, () =>
-        runXiaohongshuGenerateTask(taskId, {
-          plan: input.plan as XiaohongshuPlan,
-          imageAspectRatio: input.imageAspectRatio as XiaohongshuImageAspectRatio,
-          referenceImages: Array.isArray(input.referenceImages) ? (input.referenceImages as string[]) : [],
-        }),
-      ),
+    runAuthedBackground(user, credentials, () =>
+      runXiaohongshuGenerateTask(taskId, {
+        plan: input.plan as XiaohongshuPlan,
+        imageAspectRatio: input.imageAspectRatio as XiaohongshuImageAspectRatio,
+        referenceImages: Array.isArray(input.referenceImages) ? (input.referenceImages as string[]) : [],
+      }),
     );
     return getTask(taskId);
   }

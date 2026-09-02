@@ -1,9 +1,10 @@
 import { NextRequest } from "next/server";
 import { z } from "zod";
 
+import { withAuthedUser } from "@/lib/auth/session";
 import { planXiaohongshuPost } from "@/lib/services/xiaohongshu-service";
-import { handleRouteError, ok } from "@/lib/utils/route";
 import { withProviderCredentials } from "@/lib/services/provider-runtime";
+import { handleRouteError, ok } from "@/lib/utils/route";
 
 const requestSchema = z.object({
   topic: z.coerce.string().trim().min(1),
@@ -26,13 +27,15 @@ const requestSchema = z.object({
 });
 
 export async function POST(request: NextRequest) {
-  return withProviderCredentials(request, async () => {
-    try {
-    const input = requestSchema.parse(await request.json());
-    const plan = await planXiaohongshuPost(input);
-    return ok(plan);
-    } catch (error) {
-      return handleRouteError(error);
-    }
-  });
+  try {
+    return await withAuthedUser(async () => {
+      return withProviderCredentials(request, async () => {
+        const input = requestSchema.parse(await request.json());
+        const plan = await planXiaohongshuPost(input);
+        return ok(plan);
+      });
+    });
+  } catch (error) {
+    return handleRouteError(error);
+  }
 }

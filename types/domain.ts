@@ -118,6 +118,17 @@ export const statusLabels: Record<string, string> = {
   COMPLETED: "已完成",
 };
 
+export const userRoles = ["OWNER", "MEMBER"] as const;
+
+export type UserRole = (typeof userRoles)[number];
+
+export interface UserProfile {
+  id: string;
+  username: string;
+  displayName: string;
+  role: UserRole;
+}
+
 export type PlatformOption = (typeof platformOptions)[number];
 export type StyleOption = (typeof styleOptions)[number];
 export type SectionTypeKey = (typeof sectionTypes)[number];

@@ -1,8 +1,9 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 
 import { AnalysisWorkspace } from "@/components/analysis/analysis-workspace";
 import { PageHeader } from "@/components/shared/page-header";
 import { ProjectOutputConfigCard } from "@/components/shared/project-output-config-card";
+import { getSessionUser } from "@/lib/auth/session";
 import { getProjectDetail } from "@/lib/services/project-service";
 
 export default async function ProjectAnalysisPage({
@@ -17,7 +18,9 @@ export default async function ProjectAnalysisPage({
     analysisErrorMessage?: string;
   };
 }) {
-  const project = await getProjectDetail(params.id);
+  const user = await getSessionUser();
+  if (!user) redirect("/login");
+  const project = await getProjectDetail(params.id, user.id);
   if (!project) notFound();
   const analysisErrorCode = searchParams?.analysisErrorCode
     ? decodeURIComponent(searchParams.analysisErrorCode)

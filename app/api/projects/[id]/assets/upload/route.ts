@@ -1,7 +1,9 @@
 import { NextRequest } from "next/server";
 import { z } from "zod";
 
+import { withAuthedUser } from "@/lib/auth/session";
 import { prisma } from "@/lib/db/prisma";
+import { assertProjectOwned } from "@/lib/services/project-service";
 import { saveUploadAsset } from "@/lib/storage/asset-manager";
 import { handleRouteError, ok } from "@/lib/utils/route";
 
@@ -14,22 +16,25 @@ const uploadAssetSchema = z.object({
 
 export async function POST(request: NextRequest, context: { params: { id: string } }) {
   try {
-    const input = uploadAssetSchema.parse(await request.json());
-    const existingCount = await prisma.productAsset.count({
-      where: { projectId: context.params.id },
-    });
+    return await withAuthedUser(async (user) => {
+      await assertProjectOwned(context.params.id, user.id);
+      const input = uploadAssetSchema.parse(await request.json());
+      const existingCount = await prisma.productAsset.count({
+        where: { projectId: context.params.id },
+      });
 
-    const asset = await saveUploadAsset({
-      projectId: context.params.id,
-      type: input.type,
-      fileName: input.fileName,
-      mimeType: input.mimeType,
-      fileBuffer: Buffer.from(input.base64Data, "base64"),
-      sortOrder: existingCount,
-      isMain: input.type === "MAIN",
-    });
+      const asset = await saveUploadAsset({
+        projectId: context.params.id,
+        type: input.type,
+        fileName: input.fileName,
+        mimeType: input.mimeType,
+        fileBuffer: Buffer.from(input.base64Data, "base64"),
+        sortOrder: existingCount,
+        isMain: input.type === "MAIN",
+      });
 
-    return ok(asset, { status: 201 });
+      return ok(asset, { status: 201 });
+    });
   } catch (error) {
     return handleRouteError(error);
   }

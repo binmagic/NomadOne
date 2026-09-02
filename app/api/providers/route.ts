@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { NextRequest } from "next/server";
 
+import { withAuthedUser } from "@/lib/auth/session";
 import {
   activateProviderConfig,
   getAllProviderConfigs,
@@ -28,40 +29,49 @@ function providerRuntimeConfig() {
 
 export async function GET() {
   try {
-    const providers = await getAllProviderConfigs();
-    return ok({ providers, runtime: providerRuntimeConfig() });
+    return await withAuthedUser(async (user) => {
+      const providers = await getAllProviderConfigs(user.id);
+      return ok({ providers, runtime: providerRuntimeConfig() });
+    });
   } catch (error) {
     return handleRouteError(error);
   }
 }
 
 export async function POST(request: NextRequest) {
-  return withProviderCredentials(request, async () => {
-    try {
-      const parsed = providerSaveSchema.parse(await request.json());
-      const resolved = await resolveProviderConnectionInput(parsed);
-      const savedProviderId = await saveProviderConfig({
-        ...parsed,
-        baseUrl: resolved.baseUrl,
-        apiKey: resolved.apiKey,
+  try {
+    return await withAuthedUser(async (user) => {
+      return withProviderCredentials(request, async () => {
+        const parsed = providerSaveSchema.parse(await request.json());
+        const resolved = await resolveProviderConnectionInput(parsed);
+        const savedProviderId = await saveProviderConfig(
+          {
+            ...parsed,
+            baseUrl: resolved.baseUrl,
+            apiKey: resolved.apiKey,
+          },
+          user.id,
+        );
+        const providers = await getAllProviderConfigs(user.id);
+        return ok({
+          savedProviderId,
+          providers,
+          runtime: providerRuntimeConfig(),
+        });
       });
-      const providers = await getAllProviderConfigs();
-      return ok({
-        savedProviderId,
-        providers,
-        runtime: providerRuntimeConfig(),
-      });
-    } catch (error) {
-      return handleRouteError(error);
-    }
-  });
+    });
+  } catch (error) {
+    return handleRouteError(error);
+  }
 }
 
 export async function PATCH(request: NextRequest) {
   try {
-    const parsed = providerActivateSchema.parse(await request.json());
-    const providers = await activateProviderConfig(parsed.providerId);
-    return ok({ providers, runtime: providerRuntimeConfig() });
+    return await withAuthedUser(async (user) => {
+      const parsed = providerActivateSchema.parse(await request.json());
+      const providers = await activateProviderConfig(parsed.providerId, user.id);
+      return ok({ providers, runtime: providerRuntimeConfig() });
+    });
   } catch (error) {
     return handleRouteError(error);
   }

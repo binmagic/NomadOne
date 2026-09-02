@@ -95,9 +95,31 @@ async function pruneProjectToPreviewConfig(projectId: string, snapshot: unknown)
   }
 }
 
-export async function listProjects() {
+export async function assertProjectOwned(projectId: string, userId: string) {
+  const project = await prisma.project.findFirst({
+    where: { id: projectId, userId },
+    select: { id: true },
+  });
+  if (!project) {
+    throw new Error("Project not found.");
+  }
+  return project;
+}
+
+export async function assertAssetOwned(assetId: string, userId: string) {
+  const asset = await prisma.productAsset.findFirst({
+    where: { id: assetId, project: { userId } },
+    select: { id: true, projectId: true },
+  });
+  if (!asset) {
+    throw new Error("Asset not found.");
+  }
+  return asset;
+}
+
+export async function listProjects(userId: string) {
   const projects = await prisma.project.findMany({
-    where: { platform: { not: "__mxpage_system_task__" } },
+    where: { userId, platform: { not: "__mxpage_system_task__" } },
     orderBy: { updatedAt: "desc" },
     include: {
       assets: {
@@ -115,20 +137,26 @@ export async function listProjects() {
   }));
 }
 
-export async function createProject(input: {
-  name: string;
-  platform: string;
-  style: string;
-  description?: string | null;
-}) {
+export async function createProject(
+  input: {
+    name: string;
+    platform: string;
+    style: string;
+    description?: string | null;
+  },
+  userId: string,
+) {
   return prisma.project.create({
-    data: input,
+    data: {
+      ...input,
+      userId,
+    },
   });
 }
 
-export async function getProjectDetail(projectId: string) {
-  const project = await prisma.project.findUnique({
-    where: { id: projectId },
+export async function getProjectDetail(projectId: string, userId: string) {
+  const project = await prisma.project.findFirst({
+    where: { id: projectId, userId },
     include: {
       assets: { orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }] },
       analysis: true,
@@ -172,7 +200,15 @@ export async function getProjectDetail(projectId: string) {
   };
 }
 
-export async function updateProject(projectId: string, input: Record<string, unknown>) {
+export async function updateProject(projectId: string, userId: string, input: Record<string, unknown>) {
+  const owned = await prisma.project.findFirst({
+    where: { id: projectId, userId },
+    select: { id: true },
+  });
+  if (!owned) {
+    return null;
+  }
+
   await prisma.project.update({
     where: { id: projectId },
     data: input,
@@ -182,12 +218,12 @@ export async function updateProject(projectId: string, input: Record<string, unk
     await pruneProjectToPreviewConfig(projectId, input.modelSnapshot);
   }
 
-  return getProjectDetail(projectId);
+  return getProjectDetail(projectId, userId);
 }
 
-export async function deleteProject(projectId: string) {
-  const project = await prisma.project.findUnique({
-    where: { id: projectId },
+export async function deleteProject(projectId: string, userId: string) {
+  const project = await prisma.project.findFirst({
+    where: { id: projectId, userId },
   });
 
   if (!project) {

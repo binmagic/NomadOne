@@ -1,3 +1,7 @@
+import { NextRequest } from "next/server";
+
+import { withAuthedUser } from "@/lib/auth/session";
+import { assertProjectOwned } from "@/lib/services/project-service";
 import { readStorageFile } from "@/lib/storage/asset-manager";
 import { handleRouteError } from "@/lib/utils/route";
 
@@ -13,19 +17,29 @@ function getContentType(pathname: string) {
   return "application/octet-stream";
 }
 
-export async function GET(
-  _request: Request,
-  context: { params: { path: string[] } },
-) {
-  try {
-    const relativePath = context.params.path.join("/");
-    const buffer = await readStorageFile(relativePath);
-    const contentType = getContentType(relativePath);
+async function assertFileOwned(relativePath: string, userId: string) {
+  const [bucket, ownerKey] = relativePath.split("/");
+  if (bucket === "uploads" || bucket === "generated" || bucket === "exports") {
+    if (!ownerKey) {
+      throw new Error("File not found.");
+    }
+    await assertProjectOwned(ownerKey, userId);
+  }
+}
 
-    return new Response(buffer, {
-      headers: {
-        "Content-Type": String(contentType),
-      },
+export async function GET(_request: NextRequest, context: { params: { path: string[] } }) {
+  try {
+    return await withAuthedUser(async (user) => {
+      const relativePath = context.params.path.join("/");
+      await assertFileOwned(relativePath, user.id);
+      const buffer = await readStorageFile(relativePath);
+      const contentType = getContentType(relativePath);
+
+      return new Response(buffer, {
+        headers: {
+          "Content-Type": String(contentType),
+        },
+      });
     });
   } catch (error) {
     return handleRouteError(error);

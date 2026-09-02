@@ -1,4 +1,6 @@
+import { withAuthedUser } from "@/lib/auth/session";
 import { listSectionVersions } from "@/lib/services/generation-service";
+import { assertProjectOwned } from "@/lib/services/project-service";
 import { handleRouteError, ok } from "@/lib/utils/route";
 
 export async function GET(
@@ -6,8 +8,11 @@ export async function GET(
   context: { params: { id: string; sectionId: string } },
 ) {
   try {
-    const versions = await listSectionVersions(context.params.sectionId);
-    return ok(versions);
+    return await withAuthedUser(async (user) => {
+      await assertProjectOwned(context.params.id, user.id);
+      const versions = await listSectionVersions(context.params.sectionId);
+      return ok(versions);
+    });
   } catch (error) {
     return handleRouteError(error);
   }

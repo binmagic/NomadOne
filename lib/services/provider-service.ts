@@ -3,6 +3,7 @@ import { OpenAICompatibleAdapter } from "@/lib/ai/adapters/openai-compatible";
 import { normalizeDetectedModels } from "@/lib/ai/capability-detector";
 import { recommendDefaultModels } from "@/lib/ai/model-matcher";
 import { encryptSecret } from "@/lib/utils/crypto";
+import { getRequestUserId } from "@/lib/auth/request-user";
 import { getRequestProviderCredentials, resolveEffectiveBaseUrl } from "@/lib/services/provider-runtime";
 import type {
   CapabilityMap,
@@ -296,6 +297,7 @@ export async function saveProviderConfig(
       imageEditModelId?: string | null;
     };
   },
+  userId: string,
 ) {
   const baseUrl = resolveEffectiveBaseUrl(input.baseUrl);
   const discoveredModels = input.discoveredModels?.length
@@ -307,8 +309,19 @@ export async function saveProviderConfig(
   };
   const nextIsActive = input.isActive ?? true;
 
+  if (input.id) {
+    const existing = await prisma.providerConfig.findFirst({
+      where: { id: input.id, userId },
+      select: { id: true },
+    });
+    if (!existing) {
+      throw new Error("未找到要更新的服务配置。");
+    }
+  }
+
   if (nextIsActive) {
     await prisma.providerConfig.updateMany({
+      where: { userId },
       data: { isActive: false },
     });
   }
@@ -329,6 +342,7 @@ export async function saveProviderConfig(
           baseUrl,
           apiKeyEncrypted: encryptSecret(""),
           isActive: nextIsActive,
+          userId,
         },
       });
 
@@ -341,8 +355,9 @@ export async function saveProviderConfig(
   return provider.id;
 }
 
-export async function getAllProviderConfigs() {
+export async function getAllProviderConfigs(userId: string) {
   const providers = await prisma.providerConfig.findMany({
+    where: { userId },
     orderBy: { updatedAt: "desc" },
     include: {
       models: {
@@ -367,9 +382,13 @@ export async function getAllProviderConfigs() {
   });
 }
 
-export async function getActiveProviderConfig() {
+export async function getActiveProviderConfig(userId?: string) {
+  const ownerId = userId ?? getRequestUserId();
+  if (!ownerId) {
+    return null;
+  }
   const provider = await prisma.providerConfig.findFirst({
-    where: { isActive: true },
+    where: { isActive: true, userId: ownerId },
     include: {
       models: {
         orderBy: { modelId: "asc" },
@@ -393,9 +412,9 @@ export async function getActiveProviderConfig() {
   };
 }
 
-export async function activateProviderConfig(providerId: string) {
-  const provider = await prisma.providerConfig.findUnique({
-    where: { id: providerId },
+export async function activateProviderConfig(providerId: string, userId: string) {
+  const provider = await prisma.providerConfig.findFirst({
+    where: { id: providerId, userId },
   });
 
   if (!provider) {
@@ -404,6 +423,7 @@ export async function activateProviderConfig(providerId: string) {
 
   await prisma.$transaction([
     prisma.providerConfig.updateMany({
+      where: { userId },
       data: { isActive: false },
     }),
     prisma.providerConfig.update({
@@ -412,18 +432,22 @@ export async function activateProviderConfig(providerId: string) {
     }),
   ]);
 
-  return getAllProviderConfigs();
+  return getAllProviderConfigs(userId);
 }
 
 export async function getProviderAdapter(providerId?: string): Promise<ProviderAdapterContext> {
+  const userId = getRequestUserId();
+  if (!userId) {
+    throw new Error("No active provider config found.");
+  }
   const provider =
     (providerId
-      ? await prisma.providerConfig.findUnique({
-          where: { id: providerId },
+      ? await prisma.providerConfig.findFirst({
+          where: { id: providerId, userId },
           include: { models: true },
         })
       : await prisma.providerConfig.findFirst({
-          where: { isActive: true },
+          where: { isActive: true, userId },
           include: { models: true },
         })) ?? null;
 

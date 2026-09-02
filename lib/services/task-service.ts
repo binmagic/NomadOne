@@ -65,6 +65,12 @@ export async function getTask(taskId: string) {
   });
 }
 
+export async function getOwnedTask(taskId: string, userId: string) {
+  return prisma.generationTask.findFirst({
+    where: { id: taskId, project: { userId } },
+  });
+}
+
 export async function startTask(taskId: string, patch?: unknown) {
   const current = await getTask(taskId);
   return prisma.generationTask.update({

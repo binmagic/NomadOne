@@ -3,8 +3,10 @@ import { BookOpenText, FolderKanban, GalleryVerticalEnd, History, Images, Settin
 
 import { ApiUsageIndicator } from "@/components/layout/api-usage-indicator";
 import { FloatingThemeToggle } from "@/components/layout/theme-toggle";
+import { UserSessionChip } from "@/components/layout/user-session-chip";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import type { UserProfile } from "@/types/domain";
 
 const appName = "MxPage";
 
@@ -16,7 +18,7 @@ const navItems = [
   { href: "/projects/new", label: "高级创建", icon: GalleryVerticalEnd },
 ];
 
-export function AppShell({ children }: { children: React.ReactNode }) {
+export function AppShell({ children, user }: { children: React.ReactNode; user: UserProfile }) {
   return (
     <div className="min-h-screen text-slate-900 dark:text-slate-100">
       <div className="fixed bottom-4 left-4 z-[60]">
@@ -96,6 +98,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <Settings2 className="mr-2 h-4 w-4" />
               AI 配置
             </Link>
+            <UserSessionChip user={user} />
           </div>
           {children}
         </main>

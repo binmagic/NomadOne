@@ -162,7 +162,12 @@ export function assetPublicUrl(asset: Pick<ProductAsset, "filePath"> | null | un
 }
 
 export async function readStorageFile(relativePath: string) {
-  return fs.readFile(path.join(rootDir(), relativePath));
+  const root = rootDir();
+  const absolutePath = path.resolve(root, relativePath);
+  if (absolutePath !== root && !absolutePath.startsWith(`${root}${path.sep}`)) {
+    throw new Error("File not found.");
+  }
+  return fs.readFile(absolutePath);
 }
 
 export async function statStorageFile(relativePath: string) {
