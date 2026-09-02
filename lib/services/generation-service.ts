@@ -8,6 +8,7 @@ import {
   buildSectionSvgLayoutPrompt,
 } from "@/lib/ai/prompts";
 import { prisma } from "@/lib/db/prisma";
+import { isOpenAiCompatibleImageModel } from "@/lib/ai/capability-detector";
 import { getProviderAdapter } from "@/lib/services/provider-service";
 import { completeTask, createTask, failTask, findRecentRunningTask } from "@/lib/services/task-service";
 import { buildVisualPromptWithAgent } from "@/lib/services/visual-prompt-agent";
@@ -106,15 +107,11 @@ function isStableImageModel(modelId: string) {
 }
 
 function isPreferredImageModel(modelId: string) {
-  return /(banana|nano-banana|nano banana|imagen|recraft|flux|gemini|gpt[-_\s]?image|chatgpt-image|dall[-_\s]?e|seedream|jimeng|midjourney|ideogram|hidream|kolors|wanx|cogview)/i.test(modelId);
+  return /(banana|nano-banana|nano banana|imagen|recraft|flux|gemini|gpt[-_\s]?image|tt[-_\s]?image|chatgpt-image|dall[-_\s]?e|seedream|jimeng|midjourney|ideogram|hidream|kolors|wanx|cogview)/i.test(modelId);
 }
 
 function isGeminiImageModel(modelId: string) {
   return /gemini.*image|nano-banana|banana/i.test(modelId);
-}
-
-function isOpenAiGptImageModel(modelId: string) {
-  return /(?:^|[-_\s])gpt[-_\s]?image(?:[-_\s]?(?:\d+(?:\.\d+)?|mini))?|chatgpt-image/i.test(modelId);
 }
 
 function readCapabilities(model: { capabilities: unknown }) {
@@ -143,7 +140,7 @@ function hasRealImageEdit(model: { capabilities: unknown }) {
 
 function canGenerateRealImage(model: { capabilities: unknown }) {
   const modelId = (model as { modelId?: string }).modelId ?? "";
-  return hasImageCapability(model) && (hasRealImageGeneration(model) || isGeminiImageModel(modelId) || isOpenAiGptImageModel(modelId));
+  return hasImageCapability(model) && (hasRealImageGeneration(model) || isGeminiImageModel(modelId) || isOpenAiCompatibleImageModel(modelId));
 }
 
 function canEditRealImage(model: { capabilities: unknown }) {
@@ -152,7 +149,7 @@ function canEditRealImage(model: { capabilities: unknown }) {
   return (
     (Boolean(capabilities.image_edit) && capabilities.real_image_edit !== false) ||
     (Boolean(capabilities.image_gen) &&
-      (capabilities.real_image_gen !== false || isGeminiImageModel(modelId) || isOpenAiGptImageModel(modelId)))
+      (capabilities.real_image_gen !== false || isGeminiImageModel(modelId) || isOpenAiCompatibleImageModel(modelId)))
   );
 }
 

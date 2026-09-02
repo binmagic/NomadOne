@@ -1,10 +1,24 @@
 ﻿"use client";
 
+/**
+ * [INPUT]: 依赖 capability-detector 的自定义模型声明，依赖 /api/providers* 的发现与保存
+ * [OUTPUT]: 对外提供 ProviderSettings；模型分配可选手填 ID，发现列表只是候选
+ * [POS]: components/providers 的设置主界面，被 provider-settings-page-client 挂载
+ * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+ */
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { ChevronsUpDown, CopyPlus, History, Loader2, LockKeyhole, PlugZap } from "lucide-react";
+import { ChevronsUpDown, CopyPlus, History, Loader2, LockKeyhole, PlugZap, Save } from "lucide-react";
 
 import { CLIENT_PROVIDER_STORAGE_KEY } from "@/components/layout/provider-credential-fetch-bridge";
+import {
+  applyDeclaredModelType,
+  declareCustomModel,
+  detectModelRoles,
+  isCustomSourcedModel,
+  type DeclaredModelType,
+} from "@/lib/ai/capability-detector";
+import type { CapabilityMap } from "@/types/domain";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -187,8 +201,76 @@ function getTypeDefaultValue(defaults: DefaultAssignments, typeKey: ModelTypeKey
 function setTypeDefaultValue(defaults: DefaultAssignments, typeKey: ModelTypeKey, modelId: string): DefaultAssignments {
   if (typeKey === "text") return { ...defaults, planningModelId: modelId };
   if (typeKey === "vision") return { ...defaults, analysisModelId: modelId };
-  if (typeKey === "image_gen") return { ...defaults, heroImageModelId: modelId, detailImageModelId: modelId };
+  if (typeKey === "image_gen") {
+    return {
+      ...defaults,
+      heroImageModelId: modelId,
+      detailImageModelId: modelId,
+      imageEditModelId: defaults.imageEditModelId.trim() ? defaults.imageEditModelId : modelId,
+    };
+  }
   return { ...defaults, imageEditModelId: modelId };
+}
+
+const assignmentFields: Array<{ key: ModelTypeKey; label: string; placeholder: string }> = [
+  { key: "text", label: "文本生成模型", placeholder: "或手动输入文本模型 ID" },
+  { key: "vision", label: "图像识别模型", placeholder: "或手动输入识图模型 ID" },
+  { key: "image_gen", label: "图像生成模型", placeholder: "或手动输入生图模型 ID" },
+  { key: "image_edit", label: "图像编辑模型", placeholder: "或手动输入改图模型 ID" },
+];
+
+function mergeRecommendedDefaults(
+  recommended: Partial<DefaultAssignments> | DefaultAssignments,
+  current: DefaultAssignments,
+): DefaultAssignments {
+  return {
+    analysisModelId: String(recommended.analysisModelId || current.analysisModelId || ""),
+    planningModelId: String(recommended.planningModelId || current.planningModelId || ""),
+    heroImageModelId: String(recommended.heroImageModelId || current.heroImageModelId || ""),
+    detailImageModelId: String(recommended.detailImageModelId || current.detailImageModelId || ""),
+    imageEditModelId: String(recommended.imageEditModelId || current.imageEditModelId || ""),
+  };
+}
+
+function upsertAssignedModels(models: GenericModelRecord[], defaults: DefaultAssignments): GenericModelRecord[] {
+  const assignments: Array<[DeclaredModelType, string]> = [
+    ["vision", defaults.analysisModelId],
+    ["text", defaults.planningModelId],
+    ["image_gen", defaults.heroImageModelId],
+    ["image_gen", defaults.detailImageModelId],
+    ["image_edit", defaults.imageEditModelId],
+  ];
+  const byId = new Map(
+    models.map((model) => [String(model.modelId), { ...model, capabilities: { ...(model.capabilities ?? {}) } }]),
+  );
+
+  for (const [typeKey, rawId] of assignments) {
+    const modelId = rawId.trim();
+    if (!modelId) continue;
+
+    const existing = byId.get(modelId);
+    if (existing) {
+      const capabilities = applyDeclaredModelType(existing.capabilities as CapabilityMap, typeKey);
+      byId.set(modelId, {
+        ...existing,
+        capabilities,
+        roles: detectModelRoles(capabilities),
+      });
+      continue;
+    }
+
+    byId.set(modelId, declareCustomModel(modelId, typeKey));
+  }
+
+  return [...byId.values()];
+}
+
+function mergeDiscoveredWithCustom(discovered: GenericModelRecord[], current: GenericModelRecord[]) {
+  const seen = new Set(discovered.map((model) => String(model.modelId).toLowerCase()));
+  return [
+    ...discovered,
+    ...current.filter((model) => isCustomSourcedModel(model.capabilities) && !seen.has(String(model.modelId).toLowerCase())),
+  ];
 }
 
 function pickModel(models: GenericModelRecord[], predicates: Array<(model: GenericModelRecord) => boolean>) {
@@ -259,7 +341,7 @@ export function ProviderSettings({ initialProviders, runtimeConfig }: ProviderSe
     () => providers.find((item) => item.id === selectedProviderId) ?? activeProvider,
     [providers, selectedProviderId, activeProvider],
   );
-  const [loading, setLoading] = useState<null | "configure" | "saveAsNew" | "activate">(null);
+  const [loading, setLoading] = useState<null | "configure" | "saveAsNew" | "activate" | "saveAssignments">(null);
   const [models, setModels] = useState<Array<GenericModelRecord>>(selectedProvider?.models ?? []);
   const [defaults, setDefaults] = useState<DefaultAssignments>(buildDefaults(selectedProvider ?? null));
   const [form, setForm] = useState({
@@ -398,10 +480,12 @@ export function ProviderSettings({ initialProviders, runtimeConfig }: ProviderSe
       const values = persistCurrentCredentials();
       await testProviderConnection(values);
       const { discoveredModels, recommendedDefaults } = await discoverProviderModels(values);
-      setModels(discoveredModels);
-      setDefaults(recommendedDefaults);
-      await persistProviderConfig(values, true, discoveredModels, recommendedDefaults);
-      toast.success(`一键配置完成：已连接服务、识别 ${discoveredModels.length} 个模型并保存配置`);
+      const mergedDefaults = mergeRecommendedDefaults(recommendedDefaults, defaults);
+      const mergedModels = upsertAssignedModels(mergeDiscoveredWithCustom(discoveredModels, models), mergedDefaults);
+      setModels(mergedModels);
+      setDefaults(mergedDefaults);
+      await persistProviderConfig(values, true, mergedModels, mergedDefaults);
+      toast.success(`一键配置完成：已连接服务、识别 ${mergedModels.length} 个模型并保存配置`);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "一键配置失败");
     } finally {
@@ -413,7 +497,9 @@ export function ProviderSettings({ initialProviders, runtimeConfig }: ProviderSe
     setLoading("saveAsNew");
     try {
       const values = persistCurrentCredentials();
-      await persistProviderConfig(values, false);
+      const nextModels = upsertAssignedModels(models, defaults);
+      setModels(nextModels);
+      await persistProviderConfig(values, false, nextModels, defaults);
       toast.success("已另存为新服务，API Key 仅保存在本地浏览器");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "配置保存失败");
@@ -424,6 +510,21 @@ export function ProviderSettings({ initialProviders, runtimeConfig }: ProviderSe
   function handleAutoFillDefaults() {
     setDefaults(buildRecommendedDefaults(models));
     toast.success("已按 GPT 优先和模型能力自动填充默认模型");
+  }
+
+  async function saveModelAssignments() {
+    setLoading("saveAssignments");
+    try {
+      const values = persistCurrentCredentials();
+      const nextModels = upsertAssignedModels(models, defaults);
+      setModels(nextModels);
+      await persistProviderConfig(values, Boolean(values.id), nextModels, defaults);
+      toast.success("已保存模型分配，自定义模型 ID 会在下次发现时保留");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "保存模型分配失败");
+    } finally {
+      setLoading(null);
+    }
   }
 
   return (
@@ -514,7 +615,7 @@ export function ProviderSettings({ initialProviders, runtimeConfig }: ProviderSe
               <div className="space-y-1">
                 <p className="text-sm font-medium">一键配置模型服务</p>
                 <p className="text-xs leading-6 text-muted-foreground">
-                  系统会自动完成本地保存凭证、测试连接、发现模型、识别能力并保存当前服务配置。
+                  系统会自动完成本地保存凭证、测试连接、发现模型、识别能力并保存当前服务配置。已手填的生图模型 ID 不会被发现结果覆盖。
                 </p>
               </div>
               <Button type="button" onClick={handleOneClickConfigure} disabled={loading !== null || !form.apiKey.trim()} className="h-11 shrink-0 gap-2 px-5">
@@ -531,29 +632,65 @@ export function ProviderSettings({ initialProviders, runtimeConfig }: ProviderSe
             </div>
           </div>
 
-          {models.length > 0 ? (
+          {models.length > 0 || Object.values(defaults).some(Boolean) ? (
             <div className="space-y-4 rounded-3xl bg-muted/60 p-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="flex flex-wrap items-center gap-2">
                   <h3 className="font-medium">默认模型类型分配</h3>
                   <Badge>{models.length} 个模型</Badge>
                 </div>
-                <Button type="button" variant="outline" size="sm" onClick={handleAutoFillDefaults}>按 GPT 优先自动填充</Button>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button type="button" variant="outline" size="sm" onClick={handleAutoFillDefaults} disabled={models.length === 0}>
+                    按 GPT 优先自动填充
+                  </Button>
+                  <Button type="button" size="sm" onClick={saveModelAssignments} disabled={loading !== null || !form.apiKey.trim()}>
+                    {loading === "saveAssignments" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                    保存模型分配
+                  </Button>
+                </div>
               </div>
 
+              <p className="text-xs leading-6 text-muted-foreground">
+                上栏下拉选择已发现的模型；第三方中转若未列生图模型，在下栏填写平台文档中的模型 ID，保存后按自定义模型保留。
+              </p>
+
               <div className="grid gap-4 md:grid-cols-2">
-                {modelTypeFields.map((field) => {
+                {assignmentFields.map((field) => {
                   const options = getModelsForType(models, field.key);
                   const selectedValue = getTypeDefaultValue(defaults, field.key);
+                  const selectId = `provider-model-${field.key}`;
+                  const hasListedValue = options.some((model) => String(model.modelId) === selectedValue);
+                  const hasCustomValue = Boolean(selectedValue.trim()) && !hasListedValue;
                   return (
                     <div key={field.key} className="space-y-2">
-                      <Label>{field.label}</Label>
-                      <select className="flex h-10 w-full rounded-xl border border-input bg-background px-3 text-sm text-foreground dark:bg-black/30" value={selectedValue} disabled={options.length === 0} onChange={(event) => setDefaults((current) => setTypeDefaultValue(current, field.key, event.target.value))}>
-                        <option value="">{options.length === 0 ? "暂无此类型模型" : "未选择"}</option>
-                        {options.map((model) => (
-                          <option key={`${field.key}-${model.modelId}`} value={model.modelId}>{model.label}</option>
-                        ))}
-                      </select>
+                      <Label htmlFor={selectId}>{field.label}</Label>
+                      <div className="relative">
+                        <select
+                          id={selectId}
+                          className="flex h-10 w-full appearance-none rounded-xl border border-input bg-background px-3 pr-10 text-sm text-foreground dark:bg-black/30"
+                          value={selectedValue}
+                          onChange={(event) => setDefaults((current) => setTypeDefaultValue(current, field.key, event.target.value))}
+                        >
+                          <option value="">
+                            {options.length === 0 && !hasCustomValue ? "暂无此类型模型，可在下方填写" : "未选择"}
+                          </option>
+                          {hasCustomValue ? <option value={selectedValue}>{selectedValue}（自定义）</option> : null}
+                          {options.map((model) => (
+                            <option key={`${field.key}-${model.modelId}`} value={String(model.modelId)}>
+                              {model.label}
+                            </option>
+                          ))}
+                        </select>
+                        <ChevronsUpDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                      </div>
+                      <Input
+                        id={`${selectId}-custom`}
+                        autoComplete="off"
+                        autoCapitalize="none"
+                        value={selectedValue}
+                        placeholder={field.placeholder}
+                        onChange={(event) => setDefaults((current) => setTypeDefaultValue(current, field.key, event.target.value))}
+                      />
                     </div>
                   );
                 })}
@@ -566,7 +703,7 @@ export function ProviderSettings({ initialProviders, runtimeConfig }: ProviderSe
       <Card>
         <CardHeader>
           <CardTitle>模型能力分组</CardTitle>
-          <CardDescription>按功能类型聚合模型。默认排序优先 GPT 文本模型和 GPT Image 系列。</CardDescription>
+          <CardDescription>按功能类型聚合模型。发现列表之外手填的 ID 会标成自定义，并参与生图 / 改图分配。</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           {models.length === 0 ? (
@@ -584,7 +721,10 @@ export function ProviderSettings({ initialProviders, runtimeConfig }: ProviderSe
                     </div>
                     <div className="mt-4 flex flex-wrap gap-2">
                       {visibleModels.map((model) => (
-                        <Badge key={`${group.key}-${model.modelId}`} variant="outline" className="max-w-full truncate">{model.label}</Badge>
+                        <Badge key={`${group.key}-${model.modelId}`} variant="outline" className="max-w-full truncate">
+                          {model.label}
+                          {isCustomSourcedModel(model.capabilities) ? " · 自定义" : ""}
+                        </Badge>
                       ))}
                       {hiddenCount > 0 ? <Badge>+ {hiddenCount} 个</Badge> : null}
                     </div>

@@ -1,3 +1,9 @@
+/**
+ * [INPUT]: 依赖 provider-client 契约、capability-detector 的 OpenAI 图像协议判定、api-usage 监控
+ * [OUTPUT]: 对外提供 OpenAICompatibleAdapter；纯文生图走 /images/generations JSON，gpt-image / tt-image 参考图走 multipart /images/edits
+ * [POS]: lib/ai/adapters 的唯一协议实现，被 provider-service 实例化
+ * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+ */
 import { z } from "zod";
 
 import type {
@@ -10,6 +16,7 @@ import type {
   StructuredRequest,
   TextRequest,
 } from "@/lib/ai/provider-client";
+import { isOpenAiCompatibleImageModel } from "@/lib/ai/capability-detector";
 import { inferCategory, logApiUsage } from "@/lib/monitor/api-usage";
 
 function normalizeBaseUrl(baseUrl: string) {
@@ -43,10 +50,6 @@ function shouldRetryWithVersionedBase(status: number, body: string) {
 
 function isGeminiImageModel(model: string) {
   return /gemini.*image|nano-banana|banana/i.test(model);
-}
-
-function isOpenAiGptImageModel(model: string) {
-  return /(?:^|[-_\s])gpt[-_\s]?image(?:[-_\s]?(?:\d+(?:\.\d+)?|mini))?|chatgpt-image/i.test(model);
 }
 
 function deriveGoogleBaseUrl(baseUrl: string) {
@@ -1096,7 +1099,7 @@ export class OpenAICompatibleAdapter implements ProviderAdapter {
         referenceErrors.push(`Google protocol failed: ${googleProtocolError.message}`);
       }
 
-      if (isOpenAiGptImageModel(input.model)) {
+      if (isOpenAiCompatibleImageModel(input.model)) {
         try {
           return await this.generateOpenAiGptImageWithReferences({
             model: input.model,
@@ -1219,7 +1222,7 @@ export class OpenAICompatibleAdapter implements ProviderAdapter {
       }
     }
 
-    if (isOpenAiGptImageModel(input.model)) {
+    if (isOpenAiCompatibleImageModel(input.model)) {
       try {
         return await this.generateOpenAiGptImageWithReferences({
           model: input.model,
