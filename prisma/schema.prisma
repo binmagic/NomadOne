@@ -78,6 +78,7 @@ model User {
   passwordHash String
   passwordSalt String
   role         UserRole         @default(MEMBER)
+  isEnabled    Boolean          @default(true)
   createdAt    DateTime         @default(now())
   updatedAt    DateTime         @updatedAt
   projects     Project[]

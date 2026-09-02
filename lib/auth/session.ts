@@ -1,7 +1,7 @@
 /**
  * [INPUT]: 依赖 next/headers cookies、prisma User、HMAC cookie 与 ALS
- * [OUTPUT]: 对外提供 getSessionUser / requireUser / withAuthedUser / 写清会话 cookie
- * [POS]: lib/auth 的 Node 会话门面。Middleware 只验 HMAC；这里再查库，删用户立即失效
+ * [OUTPUT]: 对外提供 getSessionUser / requireUser / requireOwner / withAuthedUser / withOwnerUser / 写清会话 cookie
+ * [POS]: lib/auth 的 Node 会话门面。Middleware 只验 HMAC；这里再查库，删用户或禁用立即失效
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
@@ -43,9 +43,9 @@ export async function getSessionUser(): Promise<UserProfile | null> {
 
   const user = await prisma.user.findUnique({
     where: { id: payload.userId },
-    select: { id: true, username: true, displayName: true, role: true },
+    select: { id: true, username: true, displayName: true, role: true, isEnabled: true },
   });
-  if (!user) {
+  if (!user || !user.isEnabled) {
     return null;
   }
 
@@ -60,8 +60,21 @@ export async function requireUser(): Promise<UserProfile> {
   return user;
 }
 
+export async function requireOwner(): Promise<UserProfile> {
+  const user = await requireUser();
+  if (user.role !== "OWNER") {
+    throw new AuthError("FORBIDDEN", "仅管理员可以管理用户", 403);
+  }
+  return user;
+}
+
 export async function withAuthedUser<T>(handler: (user: UserProfile) => Promise<T>) {
   const user = await requireUser();
+  return withUser(user, () => handler(user));
+}
+
+export async function withOwnerUser<T>(handler: (user: UserProfile) => Promise<T>) {
+  const user = await requireOwner();
   return withUser(user, () => handler(user));
 }
 

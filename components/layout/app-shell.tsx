@@ -1,7 +1,15 @@
-﻿import Link from "next/link";
-import { BookOpenText, FolderKanban, GalleryVerticalEnd, History, Images, Settings2 } from "lucide-react";
+﻿/**
+ * [INPUT]: 依赖 SidebarNav、ApiUsageIndicator、UserSessionChip、当前 UserProfile
+ * [OUTPUT]: 对外提供 AppShell，作为登录后工作区骨架
+ * [POS]: layout 的根壳，被 app/(app)/layout.tsx 挂载
+ * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+ */
+
+import Link from "next/link";
+import { Settings2 } from "lucide-react";
 
 import { ApiUsageIndicator } from "@/components/layout/api-usage-indicator";
+import { SidebarNav } from "@/components/layout/sidebar-nav";
 import { FloatingThemeToggle } from "@/components/layout/theme-toggle";
 import { UserSessionChip } from "@/components/layout/user-session-chip";
 import { buttonVariants } from "@/components/ui/button";
@@ -9,14 +17,6 @@ import { cn } from "@/lib/utils";
 import type { UserProfile } from "@/types/domain";
 
 const appName = "MxPage";
-
-const navItems = [
-  { href: "/", label: "快速开始", icon: FolderKanban },
-  { href: "/batch-create", label: "批量创建", icon: Images },
-  { href: "/history", label: "历史记录", icon: History },
-  { href: "/xiaohongshu/plan", label: "小红书图文", icon: BookOpenText },
-  { href: "/projects/new", label: "高级创建", icon: GalleryVerticalEnd },
-];
 
 export function AppShell({ children, user }: { children: React.ReactNode; user: UserProfile }) {
   return (
@@ -42,25 +42,7 @@ export function AppShell({ children, user }: { children: React.ReactNode; user: 
             </div>
           </Link>
 
-          <nav className="mt-6 space-y-2">
-            {navItems.map((item) => {
-              const Icon = item.icon;
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={cn(
-                    "flex items-center gap-3 rounded-2xl px-4 py-3 text-sm transition-all duration-200",
-                    "text-slate-600 hover:bg-white/85 hover:text-slate-950 hover:shadow-sm",
-                    "dark:text-slate-300 dark:hover:bg-white/8 dark:hover:text-white",
-                  )}
-                >
-                  <Icon className="h-4 w-4" />
-                  <span>{item.label}</span>
-                </Link>
-              );
-            })}
-          </nav>
+          <SidebarNav isOwner={user.role === "OWNER"} />
         </aside>
 
         <main className="min-w-0 rounded-[2rem] border border-white/80 bg-white/74 p-5 shadow-soft backdrop-blur-2xl dark:border-white/10 dark:bg-[#0f0f10]/82 dark:shadow-[0_24px_60px_-38px_rgba(0,0,0,0.78)] md:ml-[19.5rem] md:p-8">

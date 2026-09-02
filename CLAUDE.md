@@ -22,7 +22,7 @@ prisma/schema.prisma - User + Project.userId + ProviderConfig.userId
 鉴权：本地用户名密码，scrypt 哈希，HMAC cookie `mxpage_session`，无 Session 表、无 NextAuth。
 API Key 只活在浏览器 localStorage，请求头注入，不进数据库。
 Cookie `secure` 只看请求是否 https，不看 NODE_ENV——桌面是 production + http。
-空库走 /setup 创建 OWNER 并归户孤儿数据；`ALLOW_REGISTER=true` 才开放 MEMBER 注册。
+空库走 /setup 创建 OWNER 并归户孤儿数据；`ALLOW_REGISTER=true` 才开放 MEMBER 注册。OWNER 可在侧栏「用户管理」增删改查、禁用成员；系统初始化 OWNER 不允许修改。
 迁移必须走 `npm run prisma:migrate`（scripts/apply-prisma-migrations.cjs），不要 prisma migrate deploy。
 
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
