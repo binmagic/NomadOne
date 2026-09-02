@@ -1,5 +1,11 @@
 ﻿"use client";
 
+/**
+ * [INPUT]: 依赖 useEditorStore、StatusBadge、生成/导出 API
+ * [OUTPUT]: 对外提供 EditorWorkspace；模块树展示序号、标题、类型与生成状态
+ * [POS]: components/editor 的工作台主界面
+ * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+ */
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { ImagePlus, Languages, Loader2, MessageCircle, RotateCcw, Save, ShoppingCart, Sparkles, Star } from "lucide-react";
