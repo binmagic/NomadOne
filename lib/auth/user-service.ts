@@ -8,7 +8,7 @@
 import { hashPassword, verifyPassword } from "@/lib/auth/password";
 import { AuthError } from "@/lib/auth/errors";
 import { prisma } from "@/lib/db/prisma";
-import { isRegisterAllowed } from "@/lib/utils/env";
+import { isRegisterAllowed } from "@/lib/services/app-settings";
 import type { UserProfile, UserRole } from "@/types/domain";
 
 function normalizeUsername(username: string) {
@@ -118,7 +118,7 @@ export async function createMember(input: { username: string; displayName?: stri
   if ((await countUsers()) === 0) {
     throw new AuthError("SETUP_REQUIRED", "请先创建管理员账号", 409);
   }
-  if (!isRegisterAllowed()) {
+  if (!(await isRegisterAllowed())) {
     throw new AuthError("REGISTER_DISABLED", "当前未开放注册", 403);
   }
 

@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 next/link、lucide 图标、当前用户是否 OWNER
- * [OUTPUT]: 对外提供 SidebarNav，按路径高亮；OWNER 才看到用户管理
+ * [OUTPUT]: 对外提供 SidebarNav，按路径高亮；OWNER 才看到用户管理与设置
  * [POS]: layout 的侧栏导航，被 AppShell 挂载
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -9,7 +9,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BookOpenText, FolderKanban, GalleryVerticalEnd, History, Images, Users } from "lucide-react";
+import { BookOpenText, FolderKanban, GalleryVerticalEnd, History, Images, SlidersHorizontal, Users } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
@@ -23,13 +23,24 @@ const navItems = [
 
 export function SidebarNav({ isOwner }: { isOwner: boolean }) {
   const pathname = usePathname();
-  const items = isOwner ? [...navItems, { href: "/settings/users", label: "用户管理", icon: Users }] : navItems;
+  const items = isOwner
+    ? [
+        ...navItems,
+        { href: "/settings/users", label: "用户管理", icon: Users },
+        { href: "/settings", label: "设置", icon: SlidersHorizontal },
+      ]
+    : navItems;
 
   return (
     <nav className="mt-6 space-y-2">
       {items.map((item) => {
         const Icon = item.icon;
-        const isActive = item.href === "/" ? pathname === "/" : pathname === item.href || pathname.startsWith(`${item.href}/`);
+        const isActive =
+          item.href === "/"
+            ? pathname === "/"
+            : item.href === "/settings"
+              ? pathname === "/settings"
+              : pathname === item.href || pathname.startsWith(`${item.href}/`);
 
         return (
           <Link

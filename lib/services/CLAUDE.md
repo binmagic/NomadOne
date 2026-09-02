@@ -4,6 +4,7 @@
 业务服务全部按 userId 隔离。列表/创建显式传 userId；按 id 读取走 assertProjectOwned 或 findFirst({ id, userId })。别人的资源返回 not found。
 
 成员清单
+app-settings.ts: 工作区单行设置；allowRegister 默认 false，取代 ALLOW_REGISTER 环境变量
 project-service.ts: 项目 CRUD 与所有权断言，listProjects 排除系统任务平台
 provider-service.ts: Provider 按用户隔离；isActive 的 updateMany 必须 where userId；getProviderAdapter 读 ALS；保存时把分配 ID 合成为模型档案，capabilities.__source=custom 的手填模型在重新发现后仍保留
 workflow-task-service.ts: 每用户一个 __nomadone_system_task__ 占位项目；后台任务 withUser + provider credentials 双 ALS

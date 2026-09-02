@@ -85,6 +85,12 @@ model User {
   providers    ProviderConfig[]
 }
 
+model AppSettings {
+  id            String   @id @default("default")
+  allowRegister Boolean  @default(false)
+  updatedAt     DateTime @updatedAt
+}
+
 model Project {
   id            String           @id @default(cuid())
   name          String

@@ -1,5 +1,5 @@
 /**
- * [INPUT]: 依赖 registerSchema、createMember、ALLOW_REGISTER 开关
+ * [INPUT]: 依赖 registerSchema、createMember、AppSettings.allowRegister
  * [OUTPUT]: POST 创建 MEMBER 并签发 cookie；默认 403
  * [POS]: app/api/auth/register
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

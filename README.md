@@ -158,9 +158,6 @@ STORAGE_ROOT="./storage"
 APP_RUNTIME="web"
 NEXT_PUBLIC_APP_NAME="NomadOne"
 
-# 可选：设为 true 后允许继续注册 MEMBER；默认只允许创建第一个管理员
-# ALLOW_REGISTER="true"
-
 # 可选：设置后，服务端 Provider 请求会忽略 UI 中填写的 baseURL
 LOCK_BASE_URL="https://your-private-openai-compatible-gateway/v1"
 

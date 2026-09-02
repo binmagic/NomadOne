@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { AuthForm } from "@/components/auth/auth-form";
 import { getSessionUser } from "@/lib/auth/session";
 import { countUsers } from "@/lib/auth/user-service";
-import { isRegisterAllowed } from "@/lib/utils/env";
+import { isRegisterAllowed } from "@/lib/services/app-settings";
 
 export const dynamic = "force-dynamic";
 
@@ -14,5 +14,5 @@ export default async function LoginPage() {
   if (await getSessionUser()) {
     redirect("/");
   }
-  return <AuthForm mode="login" allowRegister={isRegisterAllowed()} />;
+  return <AuthForm mode="login" allowRegister={await isRegisterAllowed()} />;
 }
