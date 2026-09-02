@@ -38,8 +38,8 @@ jobs:
             --exclude='prisma/dev.db-*' \
             --exclude='.claude' \
             --exclude='dist-desktop' \
-            --exclude='nomadone-release.tgz' \
-            -czf nomadone-release.tgz .
+            -czf "$RUNNER_TEMP/nomadone-release.tgz" .
+          cp "$RUNNER_TEMP/nomadone-release.tgz" nomadone-release.tgz
 
       - name: Upload tree
         uses: appleboy/scp-action@v1
