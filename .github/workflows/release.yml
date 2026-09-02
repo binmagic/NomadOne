@@ -1,5 +1,5 @@
-# [INPUT]: Secrets DEPLOY_HOST / DEPLOY_SSH_PORT / DEPLOY_USER / DEPLOY_SSH_KEY / DEPLOY_PATH + github.ref_name
-# [OUTPUT]: SSH 到远端检出 tag 并执行 scripts/release-remote.sh
+# [INPUT]: Secrets DEPLOY_HOST / DEPLOY_SSH_PORT / DEPLOY_USER / DEPLOY_SSH_KEY / DEPLOY_PATH + github.ref_name / github.repository
+# [OUTPUT]: SSH 到远端；目录无 git 则 HTTPS clone，再检出 tag 并执行 scripts/release-remote.sh
 # [POS]: 唯一发布流水线；仅 tag v*；runner 上不 build、不推镜像
 # [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 
@@ -26,17 +26,21 @@ jobs:
         env:
           RELEASE_TAG: ${{ github.ref_name }}
           DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+          REPO_URL: https://github.com/${{ github.repository }}.git
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           port: ${{ secrets.DEPLOY_SSH_PORT }}
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
-          script_stop: true
           command_timeout: 30m
-          envs: RELEASE_TAG,DEPLOY_PATH
+          envs: RELEASE_TAG,DEPLOY_PATH,REPO_URL
           script: |
             set -euo pipefail
+            mkdir -p "$DEPLOY_PATH"
             cd "$DEPLOY_PATH"
+            if [ ! -d .git ]; then
+              git clone "$REPO_URL" .
+            fi
             git fetch --tags --force origin
             git checkout "$RELEASE_TAG" -- scripts/release-remote.sh
             bash scripts/release-remote.sh "$RELEASE_TAG"
