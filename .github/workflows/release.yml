@@ -1,6 +1,6 @@
-# [INPUT]: Secrets DEPLOY_HOST / DEPLOY_SSH_PORT / DEPLOY_USER / DEPLOY_SSH_KEY / DEPLOY_PATH + github.ref_name
-# [OUTPUT]: Runner checkout 后 scp 源码到远端，SSH 执行 scripts/release-remote.sh；远端不访问 GitHub
-# [POS]: 唯一发布流水线；仅 tag v*；runner 上不 build、不推镜像
+# [INPUT]: Secrets DEPLOY_HOST / DEPLOY_SSH_PORT / DEPLOY_USER / DEPLOY_SSH_KEY / DEPLOY_PATH + github.ref_name / github.repository
+# [OUTPUT]: SSH 到远端；无 git 则 SSH clone，再检出 tag 并执行 scripts/release-remote.sh
+# [POS]: 唯一发布流水线；仅 tag v*；runner 上不 build、不推镜像；远端用 git@github.com，不走 HTTPS
 # [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 
 name: Release
@@ -21,52 +21,27 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout tag
-        uses: actions/checkout@v4
-
-      - name: Pack tree
-        run: |
-          tar \
-            --exclude='.git' \
-            --exclude='.env' \
-            --exclude='.env.*' \
-            --exclude='node_modules' \
-            --exclude='.next' \
-            --exclude='.next-desktop' \
-            --exclude='storage' \
-            --exclude='prisma/dev.db' \
-            --exclude='prisma/dev.db-*' \
-            --exclude='.claude' \
-            --exclude='dist-desktop' \
-            -czf "$RUNNER_TEMP/nomadone-release.tgz" .
-          cp "$RUNNER_TEMP/nomadone-release.tgz" nomadone-release.tgz
-
-      - name: Upload tree
-        uses: appleboy/scp-action@v1
-        with:
-          host: ${{ secrets.DEPLOY_HOST }}
-          port: ${{ secrets.DEPLOY_SSH_PORT }}
-          username: ${{ secrets.DEPLOY_USER }}
-          key: ${{ secrets.DEPLOY_SSH_KEY }}
-          source: nomadone-release.tgz
-          target: /tmp
-          overwrite: true
-
-      - name: Compose on remote
+      - name: Deploy over SSH
         uses: appleboy/ssh-action@v1.2.2
         env:
           RELEASE_TAG: ${{ github.ref_name }}
           DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+          REPO_SSH: git@github.com:${{ github.repository }}.git
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           port: ${{ secrets.DEPLOY_SSH_PORT }}
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           command_timeout: 30m
-          envs: RELEASE_TAG,DEPLOY_PATH
+          envs: RELEASE_TAG,DEPLOY_PATH,REPO_SSH
           script: |
             set -euo pipefail
             mkdir -p "$DEPLOY_PATH"
-            tar -xzf /tmp/nomadone-release.tgz -C "$DEPLOY_PATH"
-            rm -f /tmp/nomadone-release.tgz
-            bash "$DEPLOY_PATH/scripts/release-remote.sh" "$RELEASE_TAG"
+            cd "$DEPLOY_PATH"
+            export GIT_SSH_COMMAND="ssh -o StrictHostKeyChecking=accept-new"
+            if [ ! -d .git ]; then
+              git clone "$REPO_SSH" .
+            fi
+            git fetch --tags --force origin
+            git checkout -f "$RELEASE_TAG"
+            bash scripts/release-remote.sh "$RELEASE_TAG"

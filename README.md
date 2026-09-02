@@ -198,7 +198,7 @@ docker compose up --build
 
 容器只加入 `shared-net`，不把 3000 映射到宿主机；由同一网络上的反代访问。SQLite 与上传文件在 named volume `nomadone-data`。
 
-推送 `v*` tag（例如 `v1.2.3`）会触发 GitHub Actions：Runner 检出该 tag 并 scp 到远端，再 `docker compose up --build -d`（远端不访问 GitHub）。需要仓库 Secrets：`DEPLOY_HOST`、`DEPLOY_SSH_PORT`、`DEPLOY_USER`、`DEPLOY_SSH_KEY`、`DEPLOY_PATH`。远端目录里要有 `.env`，并已安装 Docker Compose。
+推送 `v*` tag（例如 `v1.2.3`）会触发 GitHub Actions：SSH 到远端，必要时 `git clone git@github.com:binmagic/NomadOne.git`，检出该 tag，再 `docker compose up --build -d`。需要仓库 Secrets：`DEPLOY_HOST`、`DEPLOY_SSH_PORT`、`DEPLOY_USER`、`DEPLOY_SSH_KEY`、`DEPLOY_PATH`。远端 SSH 用户要能访问 GitHub（Deploy key），目录里要有 `.env`，并已安装 Docker Compose。
 
 如果你希望在团队内部使用统一网关，可以在服务端设置：
 
