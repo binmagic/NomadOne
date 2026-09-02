@@ -4,8 +4,8 @@ Next.js 14 + Prisma SQLite + Electron + OpenAI-compatible Provider
 
 <directory>
 app/ - App Router 页面与 API（子目录: (app) 工作台, (auth) 登录, api）
-components/ - UI 与工作流组件（子目录: layout, auth, projects, providers, editor）
-lib/ - 服务端内核（子目录: auth, services, ai, db, storage, validations）
+components/ - UI 与工作流组件（子目录: layout, auth, projects, providers, editor, monitor）
+lib/ - 服务端内核（子目录: auth, services, ai, db, monitor, storage, validations）
 prisma/ - SQLite schema 与迁移
 desktop/ - Electron 主进程
 types/ - 领域常量与公开类型

@@ -1,3 +1,10 @@
+/**
+ * [INPUT]: 依赖 getSessionUser、getApiUsageSummary、monitor 清空/删除按钮
+ * [OUTPUT]: 对外提供 /monitor/usage 页面
+ * [POS]: 工作台的 API 监控页，汇总与明细都按当前登录用户隔离
+ * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+ */
+
 import { Activity, AlertTriangle, Clock3, Coins, Filter, ImageIcon, RefreshCcw, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -76,6 +83,7 @@ export default async function ApiUsageMonitorPage({
   const currentPage = Number.isFinite(page) ? Math.max(1, page) : 1;
 
   const summary = await getApiUsageSummary({
+    userId: user.id,
     hours: Number.isFinite(hours) ? Math.max(1, Math.min(24 * 30, hours)) : 24,
     limit: 12,
     page: currentPage,
@@ -105,7 +113,7 @@ export default async function ApiUsageMonitorPage({
       <PageHeader
         eyebrow="API 监控"
         title="调用、额度与重试监控"
-        description="这里展示最近窗口内的 AI / 图像请求、成功失败、额度状态，以及同一次逻辑调用下的内部重试聚合结果。"
+        description="这里展示你自己最近窗口内的 AI / 图像请求、成功失败、额度状态，以及同一次逻辑调用下的内部重试聚合结果。不会看到其他用户的调用。"
       />
 
       <div className="flex justify-end">

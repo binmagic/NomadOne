@@ -1,6 +1,15 @@
+/**
+ * [INPUT]: 依赖 STORAGE_ROOT、ALS 当前用户、prisma Project.userId
+ * [OUTPUT]: 对外提供 logApiUsage / getApiUsageSummary / deleteApiUsageEntry / clearApiUsageEntries
+ * [POS]: lib/monitor 的 JSONL 用量账本。新记录盖 userId；旧记录无 userId 时用 project.userId 认领；读写删都按当前用户隔离
+ * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+ */
+
 import fs from "fs/promises";
 import path from "path";
 
+import { getRequestUserId } from "@/lib/auth/request-user";
+import { prisma } from "@/lib/db/prisma";
 import { env } from "@/lib/utils/env";
 
 export type ApiUsageCategory =
@@ -14,6 +23,7 @@ export type ApiUsageCategory =
 
 export interface ApiUsageEntry {
   id: string;
+  userId: string | null;
   timestamp: string;
   providerBaseUrl: string;
   endpoint: string;
@@ -226,6 +236,44 @@ function usageLogPath() {
   return path.join(monitorDir(), "api-usage.jsonl");
 }
 
+async function loadOwnedProjectIds(userId: string) {
+  const projects = await prisma.project.findMany({
+    where: { userId },
+    select: { id: true },
+  });
+  return new Set(projects.map((project) => project.id));
+}
+
+function belongsToUser(
+  entry: { userId?: string | null; projectId?: string | null },
+  userId: string,
+  ownedProjectIds: Set<string>,
+) {
+  if (entry.userId) {
+    return entry.userId === userId;
+  }
+  if (entry.projectId) {
+    return ownedProjectIds.has(entry.projectId);
+  }
+  return false;
+}
+
+function normalizeUserId(value: unknown) {
+  return typeof value === "string" && value.trim() ? value : null;
+}
+
+async function readUsageLogLines() {
+  try {
+    const raw = await fs.readFile(usageLogPath(), "utf8");
+    return raw
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean);
+  } catch {
+    return [];
+  }
+}
+
 async function ensureMonitorDir() {
   await fs.mkdir(monitorDir(), { recursive: true });
 }
@@ -349,6 +397,7 @@ export async function logApiUsage(params: {
   const usage = extractUsage(parsedPayload);
   const entry: ApiUsageEntry = {
     id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    userId: getRequestUserId() ?? null,
     timestamp: new Date().toISOString(),
     providerBaseUrl: params.providerBaseUrl,
     endpoint: params.endpoint,
@@ -399,65 +448,87 @@ export async function logApiUsage(params: {
   return entry;
 }
 
-export async function listApiUsageEntries(limit = 100) {
+function parseUsageEntry(line: string): ApiUsageEntry | null {
   try {
-    const raw = await fs.readFile(usageLogPath(), "utf8");
-    const lines = raw
-      .split(/\r?\n/)
-      .map((line) => line.trim())
-      .filter(Boolean);
-
-    return lines
-      .slice(-limit)
-      .reverse()
-      .map((line) => {
-        const entry = JSON.parse(line) as Partial<ApiUsageEntry>;
-        const normalizedEntry = {
-          finalEndpoint: entry.finalEndpoint ?? entry.endpoint ?? null,
-          attemptCount: entry.attemptCount ?? 1,
-          retrySummary: entry.retrySummary ?? null,
-          collapsedAttempts: entry.collapsedAttempts ?? [],
-          ...entry,
-        } as ApiUsageEntry;
-        return humanizeEntry(normalizedEntry);
-      });
+    const entry = JSON.parse(line) as Partial<ApiUsageEntry>;
+    return humanizeEntry({
+      ...entry,
+      userId: normalizeUserId(entry.userId),
+      finalEndpoint: entry.finalEndpoint ?? entry.endpoint ?? null,
+      attemptCount: entry.attemptCount ?? 1,
+      retrySummary: entry.retrySummary ?? null,
+      collapsedAttempts: entry.collapsedAttempts ?? [],
+    } as ApiUsageEntry);
   } catch {
-    return [];
+    return null;
   }
 }
 
-export async function clearApiUsageEntries() {
-  try {
-    await fs.rm(usageLogPath(), { force: true });
-  } catch {
-    return { cleared: false };
+export async function listApiUsageEntries(userId: string, limit?: number) {
+  const ownedProjectIds = await loadOwnedProjectIds(userId);
+  const lines = await readUsageLogLines();
+  const entries: ApiUsageEntry[] = [];
+
+  for (let index = lines.length - 1; index >= 0; index -= 1) {
+    const entry = parseUsageEntry(lines[index] ?? "");
+    if (!entry || !belongsToUser(entry, userId, ownedProjectIds)) {
+      continue;
+    }
+    entries.push(entry);
+    if (limit && entries.length >= limit) {
+      break;
+    }
   }
 
-  return { cleared: true };
+  return entries;
 }
 
-export async function deleteApiUsageEntry(entryId: string) {
-  if (!entryId.trim()) {
-    return { deleted: false, reason: "missing_id" as const };
-  }
-
+export async function clearApiUsageEntries(userId: string) {
   try {
-    const raw = await fs.readFile(usageLogPath(), "utf8");
-    const lines = raw
-      .split(/\r?\n/)
-      .map((line) => line.trim())
-      .filter(Boolean);
-
+    const ownedProjectIds = await loadOwnedProjectIds(userId);
+    const lines = await readUsageLogLines();
     const keptLines = lines.filter((line) => {
       try {
         const parsed = JSON.parse(line) as Partial<ApiUsageEntry>;
-        return parsed.id !== entryId;
+        return !belongsToUser(parsed, userId, ownedProjectIds);
       } catch {
         return true;
       }
     });
 
-    const deleted = keptLines.length !== lines.length;
+    await ensureMonitorDir();
+    const nextContent = keptLines.length > 0 ? `${keptLines.join("\n")}\n` : "";
+    await fs.writeFile(usageLogPath(), nextContent, "utf8");
+    return { cleared: true };
+  } catch {
+    return { cleared: false };
+  }
+}
+
+export async function deleteApiUsageEntry(entryId: string, userId: string) {
+  if (!entryId.trim()) {
+    return { deleted: false, reason: "missing_id" as const };
+  }
+
+  try {
+    const ownedProjectIds = await loadOwnedProjectIds(userId);
+    const lines = await readUsageLogLines();
+    let deleted = false;
+    const keptLines: string[] = [];
+
+    for (const line of lines) {
+      try {
+        const parsed = JSON.parse(line) as Partial<ApiUsageEntry>;
+        if (parsed.id === entryId && belongsToUser(parsed, userId, ownedProjectIds)) {
+          deleted = true;
+          continue;
+        }
+      } catch {
+        // keep unreadable lines
+      }
+      keptLines.push(line);
+    }
+
     if (!deleted) {
       return { deleted: false, reason: "not_found" as const };
     }
@@ -471,7 +542,8 @@ export async function deleteApiUsageEntry(entryId: string) {
   }
 }
 
-export async function getApiUsageSummary(options?: {
+export async function getApiUsageSummary(options: {
+  userId: string;
   hours?: number;
   limit?: number;
   page?: number;
@@ -480,10 +552,10 @@ export async function getApiUsageSummary(options?: {
   quotaState?: ApiUsageEntry["quotaState"] | "all";
   success?: "all" | "success" | "failed";
 }) {
-  const hours = options?.hours ?? 24;
-  const limit = options?.limit ?? 50;
-  const page = Math.max(1, options?.page ?? 1);
-  const entries = await listApiUsageEntries(Math.max(limit, 500));
+  const hours = options.hours ?? 24;
+  const limit = options.limit ?? 50;
+  const page = Math.max(1, options.page ?? 1);
+  const entries = await listApiUsageEntries(options.userId);
   const since = Date.now() - hours * 60 * 60 * 1000;
   const filtered = entries.filter((entry) => {
     if (new Date(entry.timestamp).getTime() < since) {

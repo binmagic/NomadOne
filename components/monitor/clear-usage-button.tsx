@@ -1,3 +1,10 @@
+/**
+ * [INPUT]: 依赖 ConfirmDialog 与 DELETE /api/monitor/usage
+ * [OUTPUT]: 对外提供 ClearUsageButton
+ * [POS]: monitor 的清空入口，只清当前登录用户自己的记录
+ * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+ */
+
 "use client";
 
 import { useRouter } from "next/navigation";
@@ -25,7 +32,7 @@ export function ClearUsageButton() {
         throw new Error(payload.error?.message ?? "删除调用记录失败");
       }
 
-      toast.success("历史调用记录已清空");
+      toast.success("你的调用记录已清空");
       setOpen(false);
       router.refresh();
     } catch (error) {
@@ -44,8 +51,8 @@ export function ClearUsageButton() {
       <ConfirmDialog
         open={open}
         loading={loading}
-        title="清空全部调用记录？"
-        description="这会删除 API 监控中的全部历史记录，操作不可恢复。"
+        title="清空你的调用记录？"
+        description="只会删除你自己的 API 监控记录，不影响其他用户。操作不可恢复。"
         confirmText="确认清空"
         cancelText="暂不清空"
         destructive

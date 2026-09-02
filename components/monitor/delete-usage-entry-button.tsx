@@ -1,3 +1,10 @@
+/**
+ * [INPUT]: 依赖 ConfirmDialog 与 DELETE /api/monitor/usage?id=
+ * [OUTPUT]: 对外提供 DeleteUsageEntryButton
+ * [POS]: monitor 的单条删除入口；接口按当前用户校验归属，别人的 id 会 not found
+ * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+ */
+
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
