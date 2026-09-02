@@ -86,9 +86,10 @@ model User {
 }
 
 model AppSettings {
-  id            String   @id @default("default")
-  allowRegister Boolean  @default(false)
-  updatedAt     DateTime @updatedAt
+  id             String   @id @default("default")
+  allowRegister  Boolean  @default(false)
+  modelTimeoutMs Int      @default(120000)
+  updatedAt      DateTime @updatedAt
 }
 
 model Project {

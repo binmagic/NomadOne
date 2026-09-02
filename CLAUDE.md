@@ -17,7 +17,7 @@ scripts/ - Prisma 安全迁移、桌面打包与远程发布
 package.json - Next 14.2 / Prisma 6 / Electron 桌面打包
 .env.example - DATABASE_URL、APP_SECRET
 middleware.ts - HMAC 会话门禁；未登录页 302 /login，API 401
-prisma/schema.prisma - User + AppSettings.allowRegister + Project.userId + ProviderConfig.userId
+prisma/schema.prisma - User + AppSettings.allowRegister + AppSettings.modelTimeoutMs + Project.userId + ProviderConfig.userId
 Dockerfile - Node 24 standalone 镜像（SWR 前缀拉 docker.io/library/node）；入口先跑自定义 SQLite 迁移
 docker-compose.yml - 单副本 nomadone，数据卷 /data
 </config>

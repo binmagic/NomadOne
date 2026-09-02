@@ -1,5 +1,5 @@
 /**
- * [INPUT]: 依赖 getSessionUser、getAppSettings、RegisterToggle
+ * [INPUT]: 依赖 getSessionUser、getAppSettings、RegisterToggle、ModelTimeoutField
  * [OUTPUT]: 对外提供 /settings 工作区设置页
  * [POS]: (app)/settings 索引页，仅 OWNER 可进；与 users/providers 并列
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
@@ -7,6 +7,7 @@
 
 import { redirect } from "next/navigation";
 
+import { ModelTimeoutField } from "@/components/settings/model-timeout-field";
 import { RegisterToggle } from "@/components/settings/register-toggle";
 import { PageHeader } from "@/components/shared/page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -31,7 +32,7 @@ export default async function WorkspaceSettingsPage() {
       <PageHeader
         eyebrow="工作区设置"
         title="设置"
-        description="控制本工作区的访问策略。管理员在用户管理中直接创建成员，不经过此开关。"
+        description="控制本工作区的访问策略和模型调用超时。管理员在用户管理中直接创建成员，不经过注册开关。"
       />
 
       <Card>
@@ -41,6 +42,16 @@ export default async function WorkspaceSettingsPage() {
         </CardHeader>
         <CardContent>
           <RegisterToggle initialAllowRegister={settings.allowRegister} />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>模型超时</CardTitle>
+          <CardDescription>单次文本或图像生成最长等待时间。超时后会中止这次调用并记入 API 监控。</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ModelTimeoutField initialModelTimeoutMs={settings.modelTimeoutMs} />
         </CardContent>
       </Card>
     </div>

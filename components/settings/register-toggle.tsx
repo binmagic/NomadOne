@@ -1,7 +1,7 @@
 /**
  * [INPUT]: 依赖 sonner、Card 区块、PATCH /api/settings
  * [OUTPUT]: 对外提供 RegisterToggle，OWNER 开关开放注册
- * [POS]: components/settings 的唯一控件，被 /settings 页消费
+ * [POS]: components/settings 的注册开关，被 /settings 页与 ModelTimeoutField 并列
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 

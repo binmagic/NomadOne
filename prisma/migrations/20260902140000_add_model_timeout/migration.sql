@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "AppSettings" ADD COLUMN "modelTimeoutMs" INTEGER NOT NULL DEFAULT 120000;

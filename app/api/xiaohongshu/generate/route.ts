@@ -7,7 +7,7 @@ import { generateXiaohongshuImages } from "@/lib/services/xiaohongshu-service";
 import { withProviderCredentials } from "@/lib/services/provider-runtime";
 import { handleRouteError, ok } from "@/lib/utils/route";
 
-export const maxDuration = 180;
+export const maxDuration = 600;
 
 const requestSchema = z.object({
   plan: xiaohongshuPlanSchema,
