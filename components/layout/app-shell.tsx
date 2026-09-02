@@ -59,25 +59,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               );
             })}
           </nav>
-
-          <div className="mt-auto space-y-3">
-            <div className="rounded-[2rem] border border-white/80 bg-white/68 p-5 text-slate-700 shadow-sm backdrop-blur-xl dark:border-white/10 dark:bg-[#141416]/88 dark:text-slate-300">
-              <div className="flex items-start justify-between gap-4">
-                <div className="min-w-0">
-                  <p className="text-[11px] uppercase tracking-[0.28em] text-slate-400 dark:text-slate-500">出品方</p>
-                  <div className="mt-2 flex flex-wrap items-center gap-2">
-                    <p className="text-sm font-semibold text-slate-900 dark:text-white">灵矩绘境 · MxPage</p>
-                    <span className="rounded-full border border-slate-200 bg-slate-100 px-2.5 py-0.5 text-[11px] font-medium text-slate-500 dark:border-white/10 dark:bg-white/8 dark:text-slate-300">
-                      V2
-                    </span>
-                  </div>
-                </div>
-              </div>
-              <p className="mt-5 text-xs leading-6 text-slate-500 dark:text-slate-400">
-                MxPage 由灵矩绘境出品，面向真实商品图文与详情页工作流，支持商品分析、页面规划、图像生成、局部编辑、导出以及 OpenAI 兼容模型接入。
-              </p>
-            </div>
-          </div>
         </aside>
 
         <main className="min-w-0 rounded-[2rem] border border-white/80 bg-white/74 p-5 shadow-soft backdrop-blur-2xl dark:border-white/10 dark:bg-[#0f0f10]/82 dark:shadow-[0_24px_60px_-38px_rgba(0,0,0,0.78)] md:ml-[19.5rem] md:p-8">
