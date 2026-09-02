@@ -1,0 +1,30 @@
+# [INPUT]: 依赖根目录 Dockerfile、.env（APP_SECRET 等），覆盖 SQLite / storage 绝对路径；依赖宿主机已存在的 external 网络 shared-net
+# [OUTPUT]: 对外提供单副本 nomadone 服务，数据落在 named volume nomadone-data，加入 shared-net
+# [POS]: 本机与远端发布共用的编排入口，被 scripts/release-remote.sh 调用
+# [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+
+services:
+  nomadone:
+    build: .
+    image: nomadone:local
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: file:/data/dev.db
+      STORAGE_ROOT: /data/storage
+      APP_RUNTIME: web
+      HOSTNAME: 0.0.0.0
+      PORT: "3000"
+      NODE_ENV: production
+    volumes:
+      - nomadone-data:/data
+    networks:
+      - shared-net
+    restart: unless-stopped
+
+volumes:
+  nomadone-data:
+
+networks:
+  shared-net:
+    external: true

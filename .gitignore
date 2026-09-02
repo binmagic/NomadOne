@@ -52,3 +52,5 @@ next-env.d.ts
 # local data
 /storage/
 /prisma/dev.db
+/prisma/dev.db-wal
+/prisma/dev.db-shm

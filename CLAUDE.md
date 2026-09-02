@@ -9,7 +9,8 @@ lib/ - 服务端内核（子目录: auth, services, ai, db, storage, validations
 prisma/ - SQLite schema 与迁移
 desktop/ - Electron 主进程
 types/ - 领域常量与公开类型
-scripts/ - Prisma 安全迁移与桌面打包
+scripts/ - Prisma 安全迁移、桌面打包与远程发布
+.github/ - GitHub Actions 标签发布（SSH 后远端 Docker）
 </directory>
 
 <config>
@@ -17,6 +18,8 @@ package.json - Next 14.2 / Prisma 6 / Electron 桌面打包
 .env.example - DATABASE_URL、APP_SECRET、ALLOW_REGISTER
 middleware.ts - HMAC 会话门禁；未登录页 302 /login，API 401
 prisma/schema.prisma - User + Project.userId + ProviderConfig.userId
+Dockerfile - Node 24 standalone 镜像（SWR 前缀拉 docker.io/library/node）；入口先跑自定义 SQLite 迁移
+docker-compose.yml - 单副本 nomadone，数据卷 /data
 </config>
 
 鉴权：本地用户名密码，scrypt 哈希，HMAC cookie `nomadone_session`，无 Session 表、无 NextAuth。

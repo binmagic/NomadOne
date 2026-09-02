@@ -1,0 +1,15 @@
+node_modules
+.next
+.next-desktop
+.git
+.github
+.claude
+storage
+prisma/dev.db
+prisma/dev.db-*
+.env
+.env.*
+!.env.example
+dist-desktop
+desktop
+*.log

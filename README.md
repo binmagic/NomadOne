@@ -188,6 +188,18 @@ API Key 默认只保存在浏览器本地的 `localStorage` 中，并且只在�
 
 ## 私有化部署
 
+本机 Docker：
+
+```bash
+cp .env.example .env
+# 至少改掉 APP_SECRET（不少于 12 字符）
+docker compose up --build
+```
+
+容器只加入 `shared-net`，不把 3000 映射到宿主机；由同一网络上的反代访问。SQLite 与上传文件在 named volume `nomadone-data`。
+
+推送 `v*` tag（例如 `v1.2.3`）会触发 GitHub Actions：SSH 到已就绪机器，检出该 tag，在远端本机 `docker compose up --build -d`。需要仓库 Secrets：`DEPLOY_HOST`、`DEPLOY_SSH_PORT`、`DEPLOY_USER`、`DEPLOY_SSH_KEY`、`DEPLOY_PATH`。远端目录里要有 `.env`，并已安装 Docker Compose。
+
 如果你希望在团队内部使用统一网关，可以在服务端设置：
 
 ```env

@@ -1,0 +1,42 @@
+# [INPUT]: Secrets DEPLOY_HOST / DEPLOY_SSH_PORT / DEPLOY_USER / DEPLOY_SSH_KEY / DEPLOY_PATH + github.ref_name
+# [OUTPUT]: SSH 到远端检出 tag 并执行 scripts/release-remote.sh
+# [POS]: 唯一发布流水线；仅 tag v*；runner 上不 build、不推镜像
+# [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+concurrency:
+  group: production-release
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy over SSH
+        uses: appleboy/ssh-action@v1.2.2
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          port: ${{ secrets.DEPLOY_SSH_PORT }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script_stop: true
+          command_timeout: 30m
+          envs: RELEASE_TAG,DEPLOY_PATH
+          script: |
+            set -euo pipefail
+            cd "$DEPLOY_PATH"
+            git fetch --tags --force origin
+            git checkout "$RELEASE_TAG" -- scripts/release-remote.sh
+            bash scripts/release-remote.sh "$RELEASE_TAG"
