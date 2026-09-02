@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 prisma AppSettings 单行
- * [OUTPUT]: 对外提供 isRegisterAllowed / getAppSettings / getModelTimeoutMs / resolveModelTimeoutMs / updateAppSettings
+ * [OUTPUT]: 对外提供 isRegisterAllowed / getAppSettings / getModelTimeoutMs / updateAppSettings
  * [POS]: 工作区级开关。开放注册与模型超时都写在这一行；公开注册读这里，OWNER 后台写这里，适配器读超时
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -35,14 +35,6 @@ export async function isRegisterAllowed() {
 export async function getModelTimeoutMs() {
   const settings = await getAppSettings();
   return settings.modelTimeoutMs;
-}
-
-export async function resolveModelTimeoutMs(override?: number) {
-  const configured = await getModelTimeoutMs();
-  if (typeof override === "number" && Number.isFinite(override) && override > 0) {
-    return Math.max(override, configured);
-  }
-  return configured;
 }
 
 export async function updateAppSettings(patch: { allowRegister?: boolean; modelTimeoutMs?: number }) {

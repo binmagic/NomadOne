@@ -6,7 +6,7 @@
 成员清单
 app-settings.ts: 工作区单行设置；allowRegister 默认 false；modelTimeoutMs 默认 120000，被适配器当作文本/图像调用超时
 project-service.ts: 项目 CRUD 与所有权断言，listProjects 排除系统任务平台
-provider-service.ts: Provider 按用户隔离；isActive 的 updateMany 必须 where userId；getProviderAdapter 读 ALS；保存时把分配 ID 合成为模型档案，capabilities.__source=custom 的手填模型在重新发现后仍保留
+provider-service.ts: Provider 按用户隔离；isActive 的 updateMany 必须 where userId；getProviderAdapter 读 ALS 并把 AppSettings.modelTimeoutMs 注入适配器；保存时把分配 ID 合成为模型档案，capabilities.__source=custom 的手填模型在重新发现后仍保留
 workflow-task-service.ts: 每用户一个 __nomadone_system_task__ 占位项目；后台任务 withUser + provider credentials 双 ALS
 task-service.ts: getOwnedTask 经 project.userId 过滤；内部 getTask 仍按 id
 generation-service.ts / planner-service.ts / analysis-service.ts / xiaohongshu-service.ts: 通过 getProviderAdapter 间接收到当前用户

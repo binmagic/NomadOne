@@ -1,7 +1,7 @@
 /**
- * [INPUT]: 依赖 provider-client 契约、capability-detector 的 OpenAI 图像协议判定、api-usage 监控、AppSettings 模型超时
+ * [INPUT]: 依赖 provider-client 契约、capability-detector 的 OpenAI 图像协议判定、api-usage 监控
  * [OUTPUT]: 对外提供 OpenAICompatibleAdapter；纯文生图走 /images/generations JSON，gpt-image / tt-image 参考图走 multipart /images/edits
- * [POS]: lib/ai/adapters 的唯一协议实现，被 provider-service 实例化；文本/图像默认超时读工作区设置，连接探测仍用短超时
+ * [POS]: lib/ai/adapters 的唯一协议实现，被 provider-service 实例化；默认超时由构造参数注入，不读数据库，连接探测仍用短超时
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 import { z } from "zod";
@@ -18,7 +18,7 @@ import type {
 } from "@/lib/ai/provider-client";
 import { isOpenAiCompatibleImageModel } from "@/lib/ai/capability-detector";
 import { inferCategory, logApiUsage } from "@/lib/monitor/api-usage";
-import { resolveModelTimeoutMs } from "@/lib/services/app-settings";
+import { MODEL_TIMEOUT_MS_DEFAULT } from "@/lib/validations/settings";
 
 function normalizeBaseUrl(baseUrl: string) {
   return baseUrl.replace(/\/+$/, "");
@@ -324,7 +324,18 @@ function classifyProbeResult(status: number, body: string) {
 export class OpenAICompatibleAdapter implements ProviderAdapter {
   private preferredBaseUrl: string | null = null;
 
-  constructor(private readonly baseUrl: string, private readonly apiKey: string) {}
+  constructor(
+    private readonly baseUrl: string,
+    private readonly apiKey: string,
+    private readonly defaultTimeoutMs = MODEL_TIMEOUT_MS_DEFAULT,
+  ) {}
+
+  private modelTimeout(override?: number) {
+    if (typeof override === "number" && Number.isFinite(override) && override > 0) {
+      return Math.max(override, this.defaultTimeoutMs);
+    }
+    return this.defaultTimeoutMs;
+  }
 
   private buildRequestUrls(path: string) {
     const urls = buildOpenAiCompatibleUrls(this.baseUrl, path);
@@ -785,7 +796,7 @@ export class OpenAICompatibleAdapter implements ProviderAdapter {
         },
         0,
       ),
-      Math.min(await resolveModelTimeoutMs(input.timeoutMs), 45000),
+      Math.min(this.modelTimeout(input.timeoutMs), 45000),
       input.monitor,
       { suppressUsageLog: input.suppressUsageLog },
     );
@@ -969,7 +980,7 @@ export class OpenAICompatibleAdapter implements ProviderAdapter {
         model: input.model,
         messages: buildMessages(input),
       }, 0.4),
-      await resolveModelTimeoutMs(input.timeoutMs),
+      this.modelTimeout(input.timeoutMs),
       input.monitor,
       { suppressUsageLog: input.suppressUsageLog },
     );
@@ -986,7 +997,7 @@ export class OpenAICompatibleAdapter implements ProviderAdapter {
         messages: buildMessages(input),
         response_format: { type: "json_object" },
       }, 0.2),
-      await resolveModelTimeoutMs(input.timeoutMs),
+      this.modelTimeout(input.timeoutMs),
       input.monitor,
       { suppressUsageLog: input.suppressUsageLog },
     );
@@ -1033,7 +1044,7 @@ export class OpenAICompatibleAdapter implements ProviderAdapter {
           aspectRatio: resolveAspectRatio(input),
         },
       },
-    }, await resolveModelTimeoutMs(input.timeoutMs), input.monitor);
+    }, this.modelTimeout(input.timeoutMs), input.monitor);
 
     return extractGoogleImageResult(payload);
   }
@@ -1060,7 +1071,7 @@ export class OpenAICompatibleAdapter implements ProviderAdapter {
           data?: Array<{ url?: string; b64_json?: string; revised_prompt?: string }>;
         }>("/images/edits", fields, input.images, {
           imageFieldName,
-          timeoutMs: await resolveModelTimeoutMs(input.timeoutMs),
+          timeoutMs: this.modelTimeout(input.timeoutMs),
           monitor: input.monitor,
         });
 
@@ -1166,7 +1177,7 @@ export class OpenAICompatibleAdapter implements ProviderAdapter {
           }>(attempt.path, {
             method: "POST",
             body: JSON.stringify(attempt.body),
-          }, await resolveModelTimeoutMs(input.timeoutMs), input.monitor);
+          }, this.modelTimeout(input.timeoutMs), input.monitor);
 
           return extractImageResult(payload);
         } catch (error) {
@@ -1187,7 +1198,7 @@ export class OpenAICompatibleAdapter implements ProviderAdapter {
           prompt: input.prompt,
           size: resolveOpenAiSize(input),
         }),
-      }, await resolveModelTimeoutMs(input.timeoutMs), input.monitor);
+      }, this.modelTimeout(input.timeoutMs), input.monitor);
 
       return extractImageResult(payload);
     } catch (error) {
@@ -1286,7 +1297,7 @@ export class OpenAICompatibleAdapter implements ProviderAdapter {
         }>(attempt.path, {
           method: "POST",
           body: JSON.stringify(attempt.body),
-        }, await resolveModelTimeoutMs(input.timeoutMs), input.monitor);
+        }, this.modelTimeout(input.timeoutMs), input.monitor);
 
         return extractImageResult(payload);
       } catch (error) {

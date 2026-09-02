@@ -1,5 +1,5 @@
 /**
- * [INPUT]: 依赖 Prisma、OpenAICompatibleAdapter、capability-detector、model-matcher、provider-runtime ALS
+ * [INPUT]: 依赖 Prisma、OpenAICompatibleAdapter、capability-detector、model-matcher、provider-runtime ALS、AppSettings 模型超时
  * [OUTPUT]: 对外提供连接测试、模型发现、配置保存/激活与 getProviderAdapter
  * [POS]: lib/services 的 Provider 内核；发现列表与用户手填 ID 在保存时合并，自定义模型按 capabilities.__source 保留
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
@@ -17,6 +17,7 @@ import {
 import { recommendDefaultModels } from "@/lib/ai/model-matcher";
 import { encryptSecret } from "@/lib/utils/crypto";
 import { getRequestUserId } from "@/lib/auth/request-user";
+import { getModelTimeoutMs } from "@/lib/services/app-settings";
 import { getRequestProviderCredentials, resolveEffectiveBaseUrl } from "@/lib/services/provider-runtime";
 import type {
   CapabilityMap,
@@ -559,6 +560,7 @@ export async function getProviderAdapter(providerId?: string): Promise<ProviderA
   }
   const baseUrl = resolveEffectiveBaseUrl(runtimeCredentials.baseUrl ?? provider.baseUrl);
   const runtimeModels = hydrateProviderModels(provider.models) as unknown as RuntimeProviderModel[];
+  const defaultTimeoutMs = await getModelTimeoutMs();
 
   return {
     provider: {
@@ -567,6 +569,6 @@ export async function getProviderAdapter(providerId?: string): Promise<ProviderA
       models: runtimeModels,
     },
     apiKey,
-    adapter: new OpenAICompatibleAdapter(baseUrl, apiKey),
+    adapter: new OpenAICompatibleAdapter(baseUrl, apiKey, defaultTimeoutMs),
   };
 }
