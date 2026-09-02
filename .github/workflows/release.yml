@@ -1,6 +1,6 @@
 # [INPUT]: Secrets DEPLOY_HOST / DEPLOY_SSH_PORT / DEPLOY_USER / DEPLOY_SSH_KEY / DEPLOY_PATH + github.ref_name / github.repository
-# [OUTPUT]: SSH 到远端；无 git 则 SSH clone，再检出 tag 并执行 scripts/release-remote.sh
-# [POS]: 唯一发布流水线；仅 tag v*；runner 上不 build、不推镜像；远端用 git@github.com，不走 HTTPS
+# [OUTPUT]: SSH 到远端；无 git 则 SSH clone，再检出 tag、清掉未跟踪的嵌套源码树，并执行 scripts/release-remote.sh
+# [POS]: 唯一发布流水线；仅 tag v*；runner 上不 build、不推镜像；远端用 git@github.com，不走 HTTPS；git clean -fd 不带 -x，保留被 ignore 的 .env 与数据
 # [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 
 name: Release
@@ -44,4 +44,5 @@ jobs:
             fi
             git fetch --tags --force origin
             git checkout -f "$RELEASE_TAG"
+            git clean -fd
             bash scripts/release-remote.sh "$RELEASE_TAG"
