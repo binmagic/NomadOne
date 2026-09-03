@@ -26,19 +26,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { contentLanguageLabels, type ContentLanguage } from "@/lib/utils/content-language";
+import { contentLanguageLabels } from "@/lib/utils/content-language";
 import { buildDefaultVisualStyleGuide, normalizeVisualStyleGuide, type VisualStyleGuide } from "@/lib/utils/visual-style-guide";
+import { readPreviewConfig, type PreviewConfig } from "@/lib/utils/preview-config";
 import { sectionTypeLabels } from "@/types/domain";
 
 interface PlannerWorkspaceProps {
   project: any;
-}
-
-interface PreviewConfig {
-  heroImageCount: number;
-  detailSectionCount: number;
-  imageAspectRatio: "3:4" | "9:16";
-  contentLanguage: ContentLanguage;
 }
 
 interface GenerationSettings {
@@ -58,13 +52,6 @@ interface PlanningProgressState {
   stage: "idle" | "requesting" | "parsing" | "saving";
   detail: string;
 }
-
-const defaultPreviewConfig: PreviewConfig = {
-  heroImageCount: 4,
-  detailSectionCount: 6,
-  imageAspectRatio: "9:16",
-  contentLanguage: "zh-CN",
-};
 
 const defaultGenerationSettings: GenerationSettings = {
   allowSvgFallback: false,
@@ -92,16 +79,7 @@ const shellItems = [
 ];
 
 function getPreviewConfig(project: any): PreviewConfig {
-  const config = project?.modelSnapshot?.previewConfig ?? {};
-  return {
-    heroImageCount: Math.min(5, Math.max(3, Number(config.heroImageCount ?? defaultPreviewConfig.heroImageCount))),
-    detailSectionCount: Math.min(
-      10,
-      Math.max(4, Number(config.detailSectionCount ?? defaultPreviewConfig.detailSectionCount)),
-    ),
-    imageAspectRatio: config.imageAspectRatio === "3:4" ? "3:4" : defaultPreviewConfig.imageAspectRatio,
-    contentLanguage: config.contentLanguage ?? defaultPreviewConfig.contentLanguage,
-  };
+  return readPreviewConfig(project?.modelSnapshot);
 }
 
 function getGenerationSettings(project: any): GenerationSettings {
@@ -966,7 +944,7 @@ export function PlannerWorkspace({ project }: PlannerWorkspaceProps) {
           <CardContent className="space-y-4">
             {detailSections.length === 0 ? (
               <div className="rounded-2xl border border-dashed border-border p-5 text-sm text-muted-foreground">
-                还没有详情页规划项。点击上方“AI 自动规划”后，会自动按分析页配置生成详情页模块。
+                还没有详情页规划项。若分析页把详情页数量设为 0，这是预期状态；需要详情页时，可新增模块或重新规划。
               </div>
             ) : (
               detailSections.map((section: any, index: number) => (

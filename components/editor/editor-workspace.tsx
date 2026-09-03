@@ -1,7 +1,7 @@
 ﻿"use client";
 
 /**
- * [INPUT]: 依赖 useEditorStore、StatusBadge、生成/导出 API
+ * [INPUT]: 依赖 useEditorStore、StatusBadge、生成/导出 API、preview-config 的输出张数契约
  * [OUTPUT]: 对外提供 EditorWorkspace；模块树展示序号、标题、类型与生成状态
  * [POS]: components/editor 的工作台主界面
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
@@ -19,6 +19,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useEditorStore } from "@/hooks/use-editor-store";
 import { contentLanguageLabels, contentLanguageOptions, normalizeContentLanguage, type ContentLanguage } from "@/lib/utils/content-language";
+import { readPreviewConfig, type ImageAspectRatio, type PreviewConfig } from "@/lib/utils/preview-config";
 
 interface EditorWorkspaceProps {
   project: any;
@@ -36,7 +37,6 @@ type TaskPayload = {
   } | null;
   errorMessage?: string | null;
 };
-type ImageAspectRatio = "3:4" | "9:16";
 type SectionKind =
   | "hero"
   | "selling_points"
@@ -49,14 +49,6 @@ type SectionKind =
   | "brand_trust"
   | "summary"
   | "custom";
-
-interface PreviewConfig {
-  heroImageCount: number;
-  detailSectionCount: number;
-  imageAspectRatio: ImageAspectRatio;
-  contentLanguage: ContentLanguage;
-}
-
 
 const sectionTypeOptions: SectionKind[] = [
   "hero",
@@ -166,13 +158,7 @@ const previewTexts: Partial<Record<
 };
 
 function getPreviewConfig(project: any): PreviewConfig {
-  const config = project?.modelSnapshot?.previewConfig ?? {};
-  return {
-    heroImageCount: Math.min(5, Math.max(3, Number(config.heroImageCount ?? 4))),
-    detailSectionCount: Math.min(10, Math.max(4, Number(config.detailSectionCount ?? 6))),
-    imageAspectRatio: config.imageAspectRatio === "3:4" ? "3:4" : "9:16",
-    contentLanguage: normalizeContentLanguage(config.contentLanguage),
-  };
+  return readPreviewConfig(project?.modelSnapshot);
 }
 
 function getAspectRatioClass(aspectRatio: ImageAspectRatio) {

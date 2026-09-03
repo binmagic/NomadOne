@@ -1,3 +1,9 @@
+/**
+ * [INPUT]: 依赖 product-analysis schema、domain 标签、content-language、preview-config 的默认张数
+ * [OUTPUT]: 对外提供 buildSectionPlanningPrompt、buildVisualStyleGuidePrompt
+ * [POS]: lib/ai/prompts 的详情页规划提示词，detailSectionCount=0 时只规划头图
+ * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+ */
 import type { ProductAnalysisOutput } from "@/lib/ai/schemas/product-analysis";
 import {
   platformLabels,
@@ -7,6 +13,7 @@ import {
   type StyleOption,
 } from "@/types/domain";
 import { contentLanguageNamesForPrompt, normalizeContentLanguage, type ContentLanguage } from "@/lib/utils/content-language";
+import { DETAIL_SECTION_COUNT_DEFAULT, HERO_IMAGE_COUNT_DEFAULT } from "@/lib/utils/preview-config";
 
 const sectionTypeGuide = Object.entries(sectionTypeLabels)
   .map(([key, label]) => `${key}=${label}`)
@@ -16,8 +23,8 @@ export function buildSectionPlanningPrompt(
   analysis: ProductAnalysisOutput,
   style: string,
   platform: string,
-  detailSectionCount = 6,
-  heroImageCount = 4,
+  detailSectionCount = DETAIL_SECTION_COUNT_DEFAULT,
+  heroImageCount = HERO_IMAGE_COUNT_DEFAULT,
   contentLanguage: ContentLanguage = "zh-CN",
 ) {
   const styleLabel = styleLabels[style as StyleOption] ?? style;
@@ -61,8 +68,16 @@ export function buildSectionPlanningPrompt(
     "Before writing sections, reason from the product analysis as the source of truth: exact product category, visible geometry, mechanism, repeated-part count, materials, colors, size/spec facts, and what the product must not be mistaken for.",
     "Do not create generic manufacturing, craft, measuring-ruler, sticker-sheet, electronics, storage-box, appliance, or unrelated sections unless the product analysis clearly supports them.",
     "For puzzle cubes / speed cubes / Rubik-like cubes, the detail page should explain cube order, turning feel, layer seams, corner/edge/center pieces, color recognition, grip, stability, suitable users, package contents and real dimensions; avoid claiming unrelated sticker cutting, ruler measurement props, batteries, cables, airflow, screens, or appliance functions.",
-    `The output must contain exactly ${heroImageCount + detailSectionCount} sections in total.`,
-    `You must create exactly ${heroImageCount} hero sections and exactly ${detailSectionCount} non-hero detail sections.`,
+    ...(detailSectionCount === 0
+      ? [
+          `The output must contain exactly ${heroImageCount} sections in total.`,
+          `You must create exactly ${heroImageCount} hero sections and zero non-hero detail sections.`,
+          "Do not create any non-hero sections. This merchant only needs square hero gallery images, not a long-form detail page.",
+        ]
+      : [
+          `The output must contain exactly ${heroImageCount + detailSectionCount} sections in total.`,
+          `You must create exactly ${heroImageCount} hero sections and exactly ${detailSectionCount} non-hero detail sections.`,
+        ]),
     "All hero sections must come first in the output array.",
     `Hero sections represent individual square hero gallery images, so each hero section must have a distinct first-screen communication role across these ${heroImageCount} angles.`,
     "The hero sections should cover different roles such as primary visual, core selling point, scenario mood, trust, and differentiation without repeating the same purpose.",
@@ -81,7 +96,9 @@ export function buildSectionPlanningPrompt(
     "editableFields must also include styleRole, sharedStyleAnchors, and localVariation. styleRole describes this section role inside the shared visual system. sharedStyleAnchors lists the visual elements that must remain identical with the rest of the project. localVariation describes what can change only in this one image.",
     "editableFields should also include negativeConstraints as an array of product-specific impossible or undesirable visual outcomes.",
     "Avoid duplicate section goals and avoid repeating the same section type excessively.",
-    "The section flow should feel commercially complete and conversion-oriented.",
+    detailSectionCount === 0
+      ? "Do not pad the plan with extra detail modules to make it feel complete. Completeness here means distinct hero gallery angles only."
+      : "The section flow should feel commercially complete and conversion-oriented.",
     "",
     "Return exactly this JSON shape:",
     `{

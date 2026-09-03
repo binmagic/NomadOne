@@ -4,14 +4,15 @@ import path from "path";
 import { prisma } from "@/lib/db/prisma";
 import { assetPublicUrl, deleteAssetRecord } from "@/lib/storage/asset-manager";
 import { env } from "@/lib/utils/env";
+import { clampDetailSectionCount, clampHeroImageCount } from "@/lib/utils/preview-config";
 
 function readPreviewConfig(snapshot: unknown) {
   const data = (snapshot as Record<string, unknown> | null) ?? {};
   const previewConfig = (data.previewConfig as Record<string, unknown> | null) ?? {};
 
   return {
-    heroImageCount: Math.min(5, Math.max(3, Number(previewConfig.heroImageCount ?? 4))),
-    detailSectionCount: Math.min(10, Math.max(4, Number(previewConfig.detailSectionCount ?? 6))),
+    heroImageCount: clampHeroImageCount(previewConfig.heroImageCount),
+    detailSectionCount: clampDetailSectionCount(previewConfig.detailSectionCount),
   };
 }
 

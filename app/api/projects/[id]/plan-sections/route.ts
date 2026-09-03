@@ -6,6 +6,12 @@ import { planSections } from "@/lib/services/planner-service";
 import { assertProjectOwned } from "@/lib/services/project-service";
 import { withProviderCredentials } from "@/lib/services/provider-runtime";
 import { contentLanguageOptions } from "@/lib/utils/content-language";
+import {
+  DETAIL_SECTION_COUNT_MAX,
+  DETAIL_SECTION_COUNT_MIN,
+  HERO_IMAGE_COUNT_MAX,
+  HERO_IMAGE_COUNT_MIN,
+} from "@/lib/utils/preview-config";
 import { handleRouteError, ok } from "@/lib/utils/route";
 
 const planRequestSchema = z.object({
@@ -13,8 +19,8 @@ const planRequestSchema = z.object({
   autoDecideCounts: z.boolean().optional(),
   previewConfig: z
     .object({
-      heroImageCount: z.number().int().min(3).max(5),
-      detailSectionCount: z.number().int().min(4).max(10),
+      heroImageCount: z.number().int().min(HERO_IMAGE_COUNT_MIN).max(HERO_IMAGE_COUNT_MAX),
+      detailSectionCount: z.number().int().min(DETAIL_SECTION_COUNT_MIN).max(DETAIL_SECTION_COUNT_MAX),
       imageAspectRatio: z.enum(["3:4", "9:16"]),
       contentLanguage: z.enum(contentLanguageOptions),
     })

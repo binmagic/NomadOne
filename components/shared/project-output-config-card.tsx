@@ -1,5 +1,11 @@
 "use client";
 
+/**
+ * [INPUT]: 依赖 preview-config 的张数边界与读取、content-language、项目 PATCH API
+ * [OUTPUT]: 对外提供 ProjectOutputConfigCard；分析页可编辑，规划/编辑/导出页只读
+ * [POS]: components/shared 的输出配置入口，详情页数量允许 0 张
+ * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+ */
 import { useMemo, useState } from "react";
 import { Loader2, Settings2 } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -13,32 +19,20 @@ import {
   contentLanguageLabels,
   contentLanguageOptions,
   normalizeContentLanguage,
-  type ContentLanguage,
 } from "@/lib/utils/content-language";
-
-type PreviewConfig = {
-  heroImageCount: number;
-  detailSectionCount: number;
-  imageAspectRatio: "3:4" | "9:16";
-  contentLanguage: ContentLanguage;
-};
+import {
+  clampDetailSectionCount,
+  clampHeroImageCount,
+  detailSectionCountOptions,
+  heroImageCountOptions,
+  readPreviewConfig,
+  type PreviewConfig,
+} from "@/lib/utils/preview-config";
 
 type ProjectConfigCardProject = {
   id: string;
   modelSnapshot: unknown;
 } | null;
-
-function normalizePreviewConfig(snapshot: unknown): PreviewConfig {
-  const data = (snapshot as Record<string, unknown> | null) ?? {};
-  const previewConfig = (data.previewConfig as Record<string, unknown> | null) ?? {};
-
-  return {
-    heroImageCount: Math.min(5, Math.max(3, Number(previewConfig.heroImageCount ?? 4))),
-    detailSectionCount: Math.min(10, Math.max(4, Number(previewConfig.detailSectionCount ?? 6))),
-    imageAspectRatio: previewConfig.imageAspectRatio === "3:4" ? "3:4" : "9:16",
-    contentLanguage: normalizeContentLanguage(previewConfig.contentLanguage),
-  };
-}
 
 function OutputConfigSummary({ config }: { config: PreviewConfig }) {
   return (
@@ -77,7 +71,7 @@ export function ProjectOutputConfigCard({
   editable?: boolean;
 }) {
   const router = useRouter();
-  const initialConfig = useMemo(() => normalizePreviewConfig(project?.modelSnapshot), [project?.modelSnapshot]);
+  const initialConfig = useMemo(() => readPreviewConfig(project?.modelSnapshot), [project?.modelSnapshot]);
   const [formState, setFormState] = useState<PreviewConfig>(initialConfig);
   const [saving, setSaving] = useState(false);
 
@@ -173,11 +167,11 @@ export function ProjectOutputConfigCard({
               onChange={(event) =>
                 setFormState((current) => ({
                   ...current,
-                  heroImageCount: Math.min(5, Math.max(3, Number(event.target.value))),
+                  heroImageCount: clampHeroImageCount(event.target.value),
                 }))
               }
             >
-              {[3, 4, 5].map((count) => (
+              {heroImageCountOptions.map((count) => (
                 <option key={count} value={count}>
                   {count} 张
                 </option>
@@ -192,16 +186,17 @@ export function ProjectOutputConfigCard({
               onChange={(event) =>
                 setFormState((current) => ({
                   ...current,
-                  detailSectionCount: Math.min(10, Math.max(4, Number(event.target.value))),
+                  detailSectionCount: clampDetailSectionCount(event.target.value),
                 }))
               }
             >
-              {[4, 5, 6, 7, 8, 9, 10].map((count) => (
+              {detailSectionCountOptions.map((count) => (
                 <option key={count} value={count}>
                   {count} 张
                 </option>
               ))}
             </select>
+            <p className="text-xs text-muted-foreground">设为 0 张时只保留头图，不规划、不生成、不导出详情页。</p>
           </div>
           <div className="space-y-2">
             <Label>详情图比例</Label>

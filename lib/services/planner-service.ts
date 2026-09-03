@@ -9,6 +9,15 @@ import { readStorageFile } from "@/lib/storage/asset-manager";
 import { getProviderAdapter } from "@/lib/services/provider-service";
 import { completeTask, createTask, failTask, findRecentRunningTask } from "@/lib/services/task-service";
 import { contentLanguageOptions, normalizeContentLanguage, type ContentLanguage } from "@/lib/utils/content-language";
+import {
+  DETAIL_SECTION_COUNT_AUTO_MIN,
+  DETAIL_SECTION_COUNT_DEFAULT,
+  DETAIL_SECTION_COUNT_MAX,
+  DETAIL_SECTION_COUNT_MIN,
+  HERO_IMAGE_COUNT_DEFAULT,
+  HERO_IMAGE_COUNT_MAX,
+  HERO_IMAGE_COUNT_MIN,
+} from "@/lib/utils/preview-config";
 import { buildDefaultVisualStyleGuide, hasVisualStyleGuide, normalizeVisualStyleGuide, readVisualStyleGuide } from "@/lib/utils/visual-style-guide";
 import type { SectionTypeKey } from "@/types/domain";
 
@@ -41,15 +50,15 @@ type NormalizedSection = {
 };
 
 const previewConfigSchema = z.object({
-  heroImageCount: z.number().int().min(3).max(5),
-  detailSectionCount: z.number().int().min(4).max(10),
+  heroImageCount: z.number().int().min(HERO_IMAGE_COUNT_MIN).max(HERO_IMAGE_COUNT_MAX),
+  detailSectionCount: z.number().int().min(DETAIL_SECTION_COUNT_MIN).max(DETAIL_SECTION_COUNT_MAX),
   imageAspectRatio: z.enum(["3:4", "9:16"]).default("9:16"),
   contentLanguage: z.enum(contentLanguageOptions).default("zh-CN"),
 });
 
 const previewDecisionSchema = z.object({
-  heroImageCount: z.number().int().min(3).max(5),
-  detailSectionCount: z.number().int().min(4).max(10),
+  heroImageCount: z.number().int().min(HERO_IMAGE_COUNT_MIN).max(HERO_IMAGE_COUNT_MAX),
+  detailSectionCount: z.number().int().min(DETAIL_SECTION_COUNT_AUTO_MIN).max(DETAIL_SECTION_COUNT_MAX),
   reason: z.string().default(""),
 });
 
@@ -330,8 +339,8 @@ async function collectPlanningReferenceImages(assets: PlanningAsset[]) {
 function readPreviewConfig(snapshot: unknown): PreviewConfigInput {
   const raw = ((snapshot as Record<string, unknown> | null) ?? {}).previewConfig;
   return previewConfigSchema.parse({
-    heroImageCount: Number((raw as Record<string, unknown> | null)?.heroImageCount ?? 4),
-    detailSectionCount: Number((raw as Record<string, unknown> | null)?.detailSectionCount ?? 6),
+    heroImageCount: Number((raw as Record<string, unknown> | null)?.heroImageCount ?? HERO_IMAGE_COUNT_DEFAULT),
+    detailSectionCount: Number((raw as Record<string, unknown> | null)?.detailSectionCount ?? DETAIL_SECTION_COUNT_DEFAULT),
     imageAspectRatio: ((raw as Record<string, unknown> | null)?.imageAspectRatio ?? "9:16") as "3:4" | "9:16",
     contentLanguage: normalizeContentLanguage((raw as Record<string, unknown> | null)?.contentLanguage),
   });
@@ -479,13 +488,13 @@ async function assertSectionMutationAllowed(projectId: string, options: { adding
 
   if (options.addingType) {
     if (normalizeSectionType(options.addingType) === "HERO") {
-      if (heroCount >= 5) {
-        throw new Error("头图最多保留 5 张，请先删除或改成详情页后再新增。");
+      if (heroCount >= HERO_IMAGE_COUNT_MAX) {
+        throw new Error(`头图最多保留 ${HERO_IMAGE_COUNT_MAX} 张，请先删除或改成详情页后再新增。`);
       }
       heroCount += 1;
     } else {
-      if (detailCount >= 10) {
-        throw new Error("详情页最多保留 10 张，请先删除或改成头图后再新增。");
+      if (detailCount >= DETAIL_SECTION_COUNT_MAX) {
+        throw new Error(`详情页最多保留 ${DETAIL_SECTION_COUNT_MAX} 张，请先删除或改成头图后再新增。`);
       }
       detailCount += 1;
     }
@@ -498,13 +507,13 @@ async function assertSectionMutationAllowed(projectId: string, options: { adding
     }
 
     if (target.type === "HERO") {
-      if (heroCount <= 3) {
-        throw new Error("头图至少保留 3 张，不能继续删除。");
+      if (heroCount <= HERO_IMAGE_COUNT_MIN) {
+        throw new Error(`头图至少保留 ${HERO_IMAGE_COUNT_MIN} 张，不能继续删除。`);
       }
       heroCount -= 1;
     } else {
-      if (detailCount <= 4) {
-        throw new Error("详情页至少保留 4 张，不能继续删除。");
+      if (detailCount <= DETAIL_SECTION_COUNT_MIN) {
+        throw new Error("详情页已经没有可删的模块。");
       }
       detailCount -= 1;
     }
@@ -520,20 +529,20 @@ async function assertSectionMutationAllowed(projectId: string, options: { adding
     const nextType = normalizeSectionType(options.nextType);
     if (currentType !== nextType) {
       if (currentType === "HERO" && nextType !== "HERO") {
-        if (heroCount <= 3) {
-          throw new Error("头图至少保留 3 张，不能把当前头图改成详情页。");
+        if (heroCount <= HERO_IMAGE_COUNT_MIN) {
+          throw new Error(`头图至少保留 ${HERO_IMAGE_COUNT_MIN} 张，不能把当前头图改成详情页。`);
         }
-        if (detailCount >= 10) {
-          throw new Error("详情页最多保留 10 张，请先删除多余详情页后再转换。");
+        if (detailCount >= DETAIL_SECTION_COUNT_MAX) {
+          throw new Error(`详情页最多保留 ${DETAIL_SECTION_COUNT_MAX} 张，请先删除多余详情页后再转换。`);
         }
       }
 
       if (currentType !== "HERO" && nextType === "HERO") {
-        if (detailCount <= 4) {
-          throw new Error("详情页至少保留 4 张，不能把当前详情页改成头图。");
+        if (detailCount <= DETAIL_SECTION_COUNT_MIN) {
+          throw new Error("详情页已经没有可转换的模块。");
         }
-        if (heroCount >= 5) {
-          throw new Error("头图最多保留 5 张，请先删除多余头图后再转换。");
+        if (heroCount >= HERO_IMAGE_COUNT_MAX) {
+          throw new Error(`头图最多保留 ${HERO_IMAGE_COUNT_MAX} 张，请先删除多余头图后再转换。`);
         }
       }
     }
@@ -557,8 +566,8 @@ function buildPreviewDecisionPrompt(analysis: Record<string, unknown>, contentLa
   return [
     "You are a senior e-commerce creative strategist deciding the right image count plan for a product detail page.",
     "Return strict JSON only.",
-    "heroImageCount must be an integer between 3 and 5.",
-    "detailSectionCount must be an integer between 4 and 10.",
+    `heroImageCount must be an integer between ${HERO_IMAGE_COUNT_MIN} and ${HERO_IMAGE_COUNT_MAX}.`,
+    `detailSectionCount must be an integer between ${DETAIL_SECTION_COUNT_AUTO_MIN} and ${DETAIL_SECTION_COUNT_MAX}.`,
     `The target content language for the final page is ${contentLanguage}.`,
     "Hero images should be enough to cover distinct first-screen communication angles such as hero visual, selling point emphasis, scenario mood, trust, or differentiation.",
     "Detail sections should be enough to fully explain selling points, craftsmanship, specs, trust, and use cases without becoming repetitive.",

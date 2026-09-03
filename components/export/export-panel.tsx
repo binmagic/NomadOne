@@ -1,13 +1,10 @@
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { readPreviewConfig } from "@/lib/utils/preview-config";
 import { assetTypeLabels, sectionTypeLabels } from "@/types/domain";
 
 function getPreviewConfig(project: any) {
-  const config = project?.modelSnapshot?.previewConfig ?? {};
-  return {
-    heroImageCount: Math.min(5, Math.max(3, Number(config.heroImageCount ?? 4))),
-    detailSectionCount: Math.min(10, Math.max(4, Number(config.detailSectionCount ?? 6))),
-  };
+  return readPreviewConfig(project?.modelSnapshot);
 }
 
 export function ExportPanel({ project }: { project: any }) {
@@ -43,7 +40,12 @@ export function ExportPanel({ project }: { project: any }) {
               <p className="font-medium">本次导出说明</p>
               <div className="mt-3 space-y-2 text-muted-foreground">
                 <p>头图目录：按当前预览配置导出前 {previewConfig.heroImageCount} 张头图。</p>
-                <p>详情目录：按当前预览配置导出前 {previewConfig.detailSectionCount} 个详情模块图。</p>
+                <p>
+                  详情目录：
+                  {previewConfig.detailSectionCount === 0
+                    ? "当前未规划详情页，不导出详情模块图。"
+                    : `按当前预览配置导出前 ${previewConfig.detailSectionCount} 个详情模块图。`}
+                </p>
                 <p>压缩包内会生成 `00-头图/`、`01-详情页/` 和 `export-manifest.json`。</p>
               </div>
             </div>

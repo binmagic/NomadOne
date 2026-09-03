@@ -7,20 +7,13 @@ import archiver from "archiver";
 import { prisma } from "@/lib/db/prisma";
 import { completeTask, createTask, failTask, findRecentRunningTask } from "@/lib/services/task-service";
 import { readStorageFile } from "@/lib/storage/asset-manager";
-import { contentLanguageLabels, normalizeContentLanguage } from "@/lib/utils/content-language";
+import { contentLanguageLabels } from "@/lib/utils/content-language";
 import { extFromMime } from "@/lib/utils/files";
+import { readPreviewConfig } from "@/lib/utils/preview-config";
 import { assetTypeLabels, sectionTypeLabels } from "@/types/domain";
 
 function getPreviewConfig(project: { modelSnapshot: unknown } | null) {
-  const snapshot = (project?.modelSnapshot as Record<string, unknown> | null) ?? {};
-  const config = (snapshot.previewConfig as Record<string, unknown> | null) ?? {};
-
-  return {
-    heroImageCount: Math.min(5, Math.max(3, Number(config.heroImageCount ?? 4))),
-    detailSectionCount: Math.min(10, Math.max(4, Number(config.detailSectionCount ?? 6))),
-    imageAspectRatio: config.imageAspectRatio === "3:4" ? "3:4" : "9:16",
-    contentLanguage: normalizeContentLanguage(config.contentLanguage),
-  };
+  return readPreviewConfig(project?.modelSnapshot ?? null);
 }
 
 function buildGalleryAssets(project: {
