@@ -55,7 +55,13 @@ enum TaskType {
   BATCH_CREATE
   TRANSLATE_PAGE
   XHS_GENERATE
+  LISTING_SET_GENERATE
   QA_CHECK
+}
+
+enum ProjectKind {
+  DETAIL_PAGE
+  LISTING_SET
 }
 
 enum TaskStatus {
@@ -97,6 +103,7 @@ model Project {
   id            String           @id @default(cuid())
   name          String
   status        ProjectStatus    @default(DRAFT)
+  kind          ProjectKind      @default(DETAIL_PAGE)
   platform      String
   style         String
   description   String?
@@ -111,6 +118,7 @@ model Project {
   tasks         GenerationTask[]
 
   @@index([userId])
+  @@index([userId, kind])
 }
 
 model ProviderConfig {

@@ -119,7 +119,7 @@ export async function assertAssetOwned(assetId: string, userId: string) {
 
 export async function listProjects(userId: string) {
   const projects = await prisma.project.findMany({
-    where: { userId, platform: { not: "__nomadone_system_task__" } },
+    where: { userId, platform: { not: "__nomadone_system_task__" }, kind: "DETAIL_PAGE" },
     orderBy: { updatedAt: "desc" },
     include: {
       assets: {
