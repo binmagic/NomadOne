@@ -72,17 +72,18 @@ enum UserRole {
 }
 
 model User {
-  id           String           @id @default(cuid())
-  username     String           @unique
-  displayName  String
-  passwordHash String
-  passwordSalt String
-  role         UserRole         @default(MEMBER)
-  isEnabled    Boolean          @default(true)
-  createdAt    DateTime         @default(now())
-  updatedAt    DateTime         @updatedAt
-  projects     Project[]
-  providers    ProviderConfig[]
+  id                   String               @id @default(cuid())
+  username             String               @unique
+  displayName          String
+  passwordHash         String
+  passwordSalt         String
+  role                 UserRole             @default(MEMBER)
+  isEnabled            Boolean              @default(true)
+  createdAt            DateTime             @default(now())
+  updatedAt            DateTime             @updatedAt
+  projects             Project[]
+  providers            ProviderConfig[]
+  studioConversations  StudioConversation[]
 }
 
 model AppSettings {
@@ -241,4 +242,44 @@ model GenerationTask {
 
   @@index([projectId, createdAt])
   @@index([sectionId, createdAt])
+}
+
+enum StudioMessageRole {
+  USER
+  ASSISTANT
+}
+
+enum StudioMessageStatus {
+  PENDING
+  SUCCESS
+  FAILED
+}
+
+model StudioConversation {
+  id        String          @id @default(cuid())
+  userId    String
+  user      User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+  messages  StudioMessage[]
+
+  @@index([userId, updatedAt])
+}
+
+model StudioMessage {
+  id             String              @id @default(cuid())
+  conversationId String
+  conversation   StudioConversation  @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  role           StudioMessageRole
+  content        String
+  status         StudioMessageStatus @default(SUCCESS)
+  imagePath      String?
+  referencePaths Json?
+  aspectRatio    String?
+  modelId        String?
+  errorMessage   String?
+  createdAt      DateTime            @default(now())
+
+  @@index([conversationId, createdAt])
 }

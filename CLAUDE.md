@@ -3,8 +3,8 @@
 Next.js 14 + Prisma SQLite + Electron + OpenAI-compatible Provider
 
 <directory>
-app/ - App Router 页面与 API（子目录: (app) 工作台, (auth) 登录, api）
-components/ - UI 与工作流组件（子目录: layout, auth, projects, providers, editor, monitor）
+app/ - App Router 页面与 API（子目录: (app) 工作台含 studio 对话生图, (auth) 登录, api）
+components/ - UI 与工作流组件（子目录: layout, auth, projects, providers, editor, monitor, studio）
 lib/ - 服务端内核（子目录: auth, services, ai, db, monitor, storage, validations）
 prisma/ - SQLite schema 与迁移
 desktop/ - Electron 主进程
@@ -17,7 +17,7 @@ scripts/ - Prisma 安全迁移、桌面打包与远程发布
 package.json - Next 14.2 / Prisma 6 / Electron 桌面打包
 .env.example - DATABASE_URL、APP_SECRET
 middleware.ts - HMAC 会话门禁；未登录页 302 /login，API 401
-prisma/schema.prisma - User + AppSettings.allowRegister + AppSettings.modelTimeoutMs + Project.userId + ProviderConfig.userId
+prisma/schema.prisma - User + AppSettings.allowRegister + AppSettings.modelTimeoutMs + Project.userId + ProviderConfig.userId + StudioConversation.userId
 Dockerfile - Node 24 standalone 镜像（SWR 前缀拉 docker.io/library/node）；入口先跑自定义 SQLite 迁移
 docker-compose.yml - 单副本 nomadone，数据卷 /data
 </config>

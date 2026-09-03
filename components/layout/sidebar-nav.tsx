@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 next/link、lucide 图标、当前用户是否 OWNER
- * [OUTPUT]: 对外提供 SidebarNav，按路径高亮；OWNER 才看到用户管理与设置
+ * [OUTPUT]: 对外提供 SidebarNav，按路径高亮；含对话生图 /studio；OWNER 才看到用户管理与设置
  * [POS]: layout 的侧栏导航，被 AppShell 挂载
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -9,7 +9,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BookOpenText, FolderKanban, GalleryVerticalEnd, History, Images, SlidersHorizontal, Users } from "lucide-react";
+import { BookOpenText, FolderKanban, GalleryVerticalEnd, History, Images, SlidersHorizontal, Users, Wand2 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
@@ -17,6 +17,7 @@ const navItems = [
   { href: "/", label: "快速开始", icon: FolderKanban },
   { href: "/batch-create", label: "批量创建", icon: Images },
   { href: "/history", label: "历史记录", icon: History },
+  { href: "/studio", label: "对话生图", icon: Wand2 },
   { href: "/xiaohongshu/plan", label: "小红书图文", icon: BookOpenText },
   { href: "/projects/new", label: "高级创建", icon: GalleryVerticalEnd },
 ];

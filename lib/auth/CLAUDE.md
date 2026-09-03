@@ -11,6 +11,6 @@ cookie-options.ts: httpOnly / SameSite=Lax / Path=/；secure 看请求协议
 password.ts: Node scrypt 哈希与 timingSafeEqual 校验
 request-user.ts: ALS 写入当前 UserProfile，供 getProviderAdapter 取 userId
 session.ts: getSessionUser / requireUser / requireOwner / withAuthedUser / withOwnerUser / 写清 cookie；禁用账号视为未登录
-user-service.ts: 首个 OWNER 锁定不可改；管理员可创建成员（不依赖开放注册开关）；登录拒绝禁用账号；孤儿 Project/Provider 归户；自助注册读 AppSettings.allowRegister
+user-service.ts: 首个 OWNER 锁定不可改；管理员可创建成员（不依赖开放注册开关）；登录拒绝禁用账号；删成员前清 studio/{userId}；孤儿 Project/Provider 归户；自助注册读 AppSettings.allowRegister
 
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

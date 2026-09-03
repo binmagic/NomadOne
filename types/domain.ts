@@ -1,3 +1,10 @@
+/**
+ * [INPUT]: 无运行时依赖，只导出领域常量和公开类型
+ * [OUTPUT]: 对外提供平台/风格/能力/角色标签，以及 Studio 对话生图的视图类型
+ * [POS]: types/ 的唯一公开契约，被页面、校验和服务同时消费
+ * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+ */
+
 export const platformOptions = [
   "general_ecommerce",
   "taobao_tmall",
@@ -127,6 +134,39 @@ export interface UserProfile {
   username: string;
   displayName: string;
   role: UserRole;
+}
+
+export const studioAspectRatios = ["1:1", "3:4", "9:16"] as const;
+
+export type StudioAspectRatio = (typeof studioAspectRatios)[number];
+
+export type StudioMessageRole = "USER" | "ASSISTANT";
+
+export type StudioMessageStatus = "PENDING" | "SUCCESS" | "FAILED";
+
+export interface StudioMessageView {
+  id: string;
+  role: StudioMessageRole;
+  content: string;
+  status: StudioMessageStatus;
+  imageUrl: string | null;
+  referenceUrls: string[];
+  aspectRatio: StudioAspectRatio | null;
+  modelId: string | null;
+  errorMessage: string | null;
+  createdAt: string;
+}
+
+export interface StudioConversationSummary {
+  id: string;
+  title: string;
+  previewUrl: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+
+export interface StudioConversationView extends StudioConversationSummary {
+  messages: StudioMessageView[];
 }
 
 export type PlatformOption = (typeof platformOptions)[number];

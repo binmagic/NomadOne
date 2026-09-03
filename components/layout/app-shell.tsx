@@ -1,12 +1,15 @@
-﻿/**
+/**
  * [INPUT]: 依赖 SidebarNav、ApiUsageIndicator、UserSessionChip、当前 UserProfile
- * [OUTPUT]: 对外提供 AppShell，作为登录后工作区骨架
+ * [OUTPUT]: 对外提供 AppShell；侧栏可关闭，状态记在 localStorage
  * [POS]: layout 的根壳，被 app/(app)/layout.tsx 挂载
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
+"use client";
+
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Settings2 } from "lucide-react";
+import { PanelLeftClose, PanelLeftOpen, Settings2 } from "lucide-react";
 
 import { ApiUsageIndicator } from "@/components/layout/api-usage-indicator";
 import { SidebarNav } from "@/components/layout/sidebar-nav";
@@ -17,36 +20,86 @@ import { cn } from "@/lib/utils";
 import type { UserProfile } from "@/types/domain";
 
 const appName = "NomadOne";
+const SIDEBAR_STORAGE_KEY = "nomadone:sidebar-open:v1";
 
 export function AppShell({ children, user }: { children: React.ReactNode; user: UserProfile }) {
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+
+  useEffect(() => {
+    if (window.localStorage.getItem(SIDEBAR_STORAGE_KEY) === "0") {
+      setSidebarOpen(false);
+    }
+  }, []);
+
+  function toggleSidebar() {
+    setSidebarOpen((current) => {
+      const next = !current;
+      window.localStorage.setItem(SIDEBAR_STORAGE_KEY, next ? "1" : "0");
+      return next;
+    });
+  }
+
   return (
     <div className="min-h-screen text-slate-900 dark:text-slate-100">
       <div className="fixed bottom-4 left-4 z-[60]">
         <FloatingThemeToggle />
       </div>
       <div className="mx-auto min-h-screen max-w-[1600px] px-4 py-5 md:px-6">
-        <aside
-          className="scrollbar-hidden fixed top-5 z-40 hidden h-[calc(100vh-2.5rem)] w-72 overflow-y-auto rounded-[2rem] border border-white/70 bg-white/76 p-5 shadow-soft backdrop-blur-2xl dark:border-white/10 dark:bg-[#0b0b0c]/88 dark:shadow-[0_24px_60px_-38px_rgba(0,0,0,0.72)] md:flex md:flex-col"
-          style={{ left: "max(1.5rem, calc((100vw - 1600px) / 2 + 1.5rem))" }}
-        >
-          <Link
-            href="/"
-            className="flex items-center gap-3 rounded-2xl border border-white/85 bg-[linear-gradient(180deg,rgba(255,255,255,0.92),rgba(245,245,245,0.82))] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] dark:border-white/10 dark:bg-[linear-gradient(180deg,rgba(255,255,255,0.05),rgba(255,255,255,0.02))] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]"
+        {sidebarOpen ? (
+          <aside
+            className="scrollbar-hidden fixed top-5 z-40 hidden h-[calc(100vh-2.5rem)] w-72 overflow-y-auto rounded-[2rem] border border-white/70 bg-white/76 p-5 shadow-soft backdrop-blur-2xl dark:border-white/10 dark:bg-[#0b0b0c]/88 dark:shadow-[0_24px_60px_-38px_rgba(0,0,0,0.72)] md:flex md:flex-col"
+            style={{ left: "max(1.5rem, calc((100vw - 1600px) / 2 + 1.5rem))" }}
           >
-            <div className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-2xl border border-black/10 bg-white shadow-sm dark:border-white/10 dark:bg-white">
-              <img src="/brand-icon.ico" alt={appName} className="h-full w-full object-cover" suppressHydrationWarning />
+            <div className="flex items-start gap-2">
+              <Link
+                href="/"
+                className="flex min-w-0 flex-1 items-center gap-3 rounded-2xl border border-white/85 bg-[linear-gradient(180deg,rgba(255,255,255,0.92),rgba(245,245,245,0.82))] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] dark:border-white/10 dark:bg-[linear-gradient(180deg,rgba(255,255,255,0.05),rgba(255,255,255,0.02))] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]"
+              >
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-black/10 bg-white shadow-sm dark:border-white/10 dark:bg-white">
+                  <img src="/brand-icon.ico" alt={appName} className="h-full w-full object-cover" suppressHydrationWarning />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-lg font-semibold tracking-[-0.03em] text-slate-950 dark:text-white">{appName}</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">AI 商品图文工作台</p>
+                </div>
+              </Link>
+              <button
+                type="button"
+                onClick={toggleSidebar}
+                className="mt-1 hidden h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-white/90 text-slate-500 shadow-sm transition hover:border-slate-300 hover:text-slate-900 dark:border-white/10 dark:bg-black/30 dark:text-slate-300 dark:hover:border-white/20 dark:hover:text-white md:inline-flex"
+                aria-label="隐藏侧栏"
+                title="隐藏侧栏"
+              >
+                <PanelLeftClose className="h-4 w-4" />
+              </button>
             </div>
-            <div>
-              <p className="text-lg font-semibold tracking-[-0.03em] text-slate-950 dark:text-white">{appName}</p>
-              <p className="text-xs text-slate-500 dark:text-slate-400">AI 商品图文工作台</p>
-            </div>
-          </Link>
 
-          <SidebarNav isOwner={user.role === "OWNER"} />
-        </aside>
+            <SidebarNav isOwner={user.role === "OWNER"} />
+          </aside>
+        ) : null}
 
-        <main className="min-w-0 rounded-[2rem] border border-white/80 bg-white/74 p-5 shadow-soft backdrop-blur-2xl dark:border-white/10 dark:bg-[#0f0f10]/82 dark:shadow-[0_24px_60px_-38px_rgba(0,0,0,0.78)] md:ml-[19.5rem] md:p-8">
+        <main
+          className={cn(
+            "min-w-0 rounded-[2rem] border border-white/80 bg-white/74 p-5 shadow-soft backdrop-blur-2xl transition-[margin] duration-200 dark:border-white/10 dark:bg-[#0f0f10]/82 dark:shadow-[0_24px_60px_-38px_rgba(0,0,0,0.78)] md:p-8",
+            sidebarOpen ? "md:ml-[19.5rem]" : "md:ml-0",
+          )}
+        >
           <div className="mb-6 flex flex-wrap items-center justify-end gap-3">
+            {sidebarOpen ? null : (
+              <button
+                type="button"
+                onClick={toggleSidebar}
+                className={cn(
+                  buttonVariants({ variant: "outline" }),
+                  "mr-auto hidden h-10 rounded-2xl px-3 md:inline-flex",
+                )}
+                aria-label="打开侧栏"
+                title="打开侧栏"
+              >
+                <PanelLeftOpen className="mr-2 h-4 w-4" />
+                <span className="text-sm font-medium">侧栏</span>
+              </button>
+            )}
             <Link
               href="/monitor/usage"
               className={cn(

@@ -1,3 +1,10 @@
+/**
+ * [INPUT]: 依赖 Prisma ProductAsset、STORAGE_ROOT、nanoid 与 files 工具
+ * [OUTPUT]: 对外提供商品素材落盘/读取，以及对话生图 studio/{userId}/{conversationId} 文件
+ * [POS]: lib/storage 的唯一落盘入口。商品图走 ProductAsset；Studio 只写磁盘，路径记在 StudioMessage
+ * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+ */
+
 import fs from "fs/promises";
 import path from "path";
 
@@ -21,6 +28,7 @@ export async function ensureStorageScaffold() {
     ensureDir(path.join(rootDir(), "uploads")),
     ensureDir(path.join(rootDir(), "generated")),
     ensureDir(path.join(rootDir(), "exports")),
+    ensureDir(path.join(rootDir(), "studio")),
   ]);
 }
 
@@ -172,4 +180,86 @@ export async function readStorageFile(relativePath: string) {
 
 export async function statStorageFile(relativePath: string) {
   return fs.stat(path.join(rootDir(), relativePath));
+}
+
+function studioDir(userId: string, conversationId?: string) {
+  const base = path.join(rootDir(), "studio", userId);
+  return conversationId ? path.join(base, conversationId) : base;
+}
+
+function parseDataUrl(dataUrl: string) {
+  const match = dataUrl.match(/^data:([^;]+);base64,(.+)$/);
+  if (!match) {
+    throw new Error("Image payload is invalid.");
+  }
+  return {
+    mimeType: match[1],
+    buffer: Buffer.from(match[2], "base64"),
+  };
+}
+
+export async function saveStudioFile(params: {
+  userId: string;
+  conversationId: string;
+  source: {
+    dataUrl?: string | null;
+    url?: string | null;
+    b64Json?: string | null;
+    mimeType?: string | null;
+  };
+}) {
+  await ensureStorageScaffold();
+  const dir = studioDir(params.userId, params.conversationId);
+  await ensureDir(dir);
+
+  let mimeType = params.source.mimeType ?? "image/png";
+  let bytes: Buffer;
+
+  if (params.source.dataUrl) {
+    const parsed = parseDataUrl(params.source.dataUrl);
+    mimeType = parsed.mimeType || mimeType;
+    bytes = parsed.buffer;
+  } else if (params.source.b64Json) {
+    bytes = Buffer.from(params.source.b64Json, "base64");
+  } else if (params.source.url) {
+    const response = await fetch(params.source.url);
+    if (!response.ok) {
+      throw new Error(`Failed to download generated image: ${response.status}`);
+    }
+    bytes = Buffer.from(await response.arrayBuffer());
+    mimeType = response.headers.get("content-type")?.split(";")[0]?.trim() || mimeType;
+  } else {
+    throw new Error("Image generation produced no usable image output.");
+  }
+
+  const fileName = `${Date.now()}-${nanoid(6)}.${extFromMime(mimeType)}`;
+  const relativePath = path.join("studio", params.userId, params.conversationId, fileName);
+  await fs.writeFile(path.join(rootDir(), relativePath), bytes);
+
+  return {
+    relativePath,
+    fileName,
+    mimeType,
+  };
+}
+
+export async function deleteStudioConversationFiles(userId: string, conversationId: string) {
+  await fs.rm(studioDir(userId, conversationId), { recursive: true, force: true });
+}
+
+export async function deleteStudioUserFiles(userId: string) {
+  await fs.rm(studioDir(userId), { recursive: true, force: true });
+}
+
+export async function storagePathToDataUrl(relativePath: string) {
+  const bytes = await readStorageFile(relativePath);
+  const mimeType =
+    relativePath.toLowerCase().endsWith(".jpg") || relativePath.toLowerCase().endsWith(".jpeg")
+      ? "image/jpeg"
+      : relativePath.toLowerCase().endsWith(".webp")
+        ? "image/webp"
+        : relativePath.toLowerCase().endsWith(".gif")
+          ? "image/gif"
+          : "image/png";
+  return `data:${mimeType};base64,${bytes.toString("base64")}`;
 }

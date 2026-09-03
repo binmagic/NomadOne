@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 prisma User/Project/ProviderConfig，依赖 scrypt 哈希与 AuthError
- * [OUTPUT]: 对外提供用户计数、创建 OWNER/MEMBER、登录校验、管理员增删改查与启停、孤儿数据归户
+ * [OUTPUT]: 对外提供用户计数、创建 OWNER/MEMBER、登录校验、管理员增删改查与启停、孤儿数据归户；删成员前清 studio 磁盘
  * [POS]: lib/auth 的用户仓储。首个账号即 OWNER 且不可改；管理员可创建成员，无需开放注册
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -9,6 +9,7 @@ import { hashPassword, verifyPassword } from "@/lib/auth/password";
 import { AuthError } from "@/lib/auth/errors";
 import { prisma } from "@/lib/db/prisma";
 import { isRegisterAllowed } from "@/lib/services/app-settings";
+import { deleteStudioUserFiles } from "@/lib/storage/asset-manager";
 import type { UserProfile, UserRole } from "@/types/domain";
 
 function normalizeUsername(username: string) {
@@ -193,6 +194,7 @@ export async function updateManagedUser(
 export async function deleteManagedUser(id: string) {
   const user = await getManagedOrThrow(id);
   assertNotOwner(user);
+  await deleteStudioUserFiles(id);
   await prisma.user.delete({ where: { id } });
   return toManaged(user);
 }

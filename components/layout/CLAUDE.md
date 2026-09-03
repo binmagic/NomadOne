@@ -2,8 +2,8 @@
 > L2 | 父级: /CLAUDE.md
 
 成员清单
-app-shell.tsx: 登录后左右栏骨架，主栏挂监控、AI 配置与当前会话。
-sidebar-nav.tsx: 客户端侧栏导航；OWNER 才渲染用户管理与设置，`/settings` 仅精确匹配以免盖住 `/settings/users`。
+app-shell.tsx: 登录后左右栏骨架；侧栏可关闭，状态记 `nomadone:sidebar-open:v1`，主栏挂监控、AI 配置与当前会话。
+sidebar-nav.tsx: 客户端侧栏导航；含「对话生图」/studio。OWNER 才渲染用户管理与设置，`/settings` 仅精确匹配以免盖住 `/settings/users`。
 user-session-chip.tsx: 顶栏账号入口与退出确认。
 api-usage-indicator.tsx: API 监控状态指示。
 provider-credential-fetch-bridge.tsx: 浏览器本地 Provider 凭证桥接到请求。
