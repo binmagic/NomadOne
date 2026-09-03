@@ -6,6 +6,11 @@ import {
   type ContentLanguage,
 } from "@/lib/utils/content-language";
 
+function readNoTextInImage(section: Pick<PageSection, "editableData">) {
+  const data = (section.editableData as Record<string, unknown> | null) ?? {};
+  return data.noTextInImage === true;
+}
+
 function buildReferenceText(referenceAssets: ProductAsset[]) {
   if (!referenceAssets.length) {
     return "No reference images were provided.";
@@ -78,7 +83,9 @@ export function buildSectionImagePrompt(
     buildPhysicalRealityInstruction(),
     "Generate one high-conversion mobile e-commerce visual for this section.",
     "The image should emphasize product clarity, composition hierarchy, material texture, and marketplace aesthetics.",
-    "The headline, selling points, supporting copy, and CTA should be visually designed inside the image rather than left for later DOM text insertion.",
+    readNoTextInImage(section)
+      ? "This frame is a marketplace-compliant photograph. Do not render any captions, headlines, badges, watermarks, promotional stickers, QR codes, platform UI, or extra logos. Product only, plus real environment if the section requires it."
+      : "The headline, selling points, supporting copy, and CTA should be visually designed inside the image rather than left for later DOM text insertion.",
     "Make the result feel like finished commercial artwork, not a blank template.",
   ].join("\n");
 }

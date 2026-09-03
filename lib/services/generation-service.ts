@@ -67,14 +67,14 @@ function getGenerationSettings(project: { modelSnapshot: unknown } | null) {
   const settings = (snapshot.generationSettings as Record<string, unknown> | null) ?? {};
   const previewConfig = (snapshot.previewConfig as Record<string, unknown> | null) ?? {};
 
+  const ratio = previewConfig.imageAspectRatio;
+  const imageAspectRatio: SectionImageAspectRatio = ratio === "3:4" || ratio === "1:1" ? ratio : "9:16";
+
   return {
     allowSvgFallback: settings.allowSvgFallback === true,
-    imageAspectRatio: previewConfig.imageAspectRatio === "3:4" ? "3:4" : "9:16",
+    imageAspectRatio,
+    uniformAspectRatio: settings.uniformAspectRatio === true,
     contentLanguage: normalizeContentLanguage(previewConfig.contentLanguage),
-  } as {
-    allowSvgFallback: boolean;
-    imageAspectRatio: "3:4" | "9:16";
-    contentLanguage: ContentLanguage;
   };
 }
 
@@ -89,8 +89,12 @@ function getProjectVisualStyleGuide(project: { modelSnapshot: unknown; style?: s
 }
 function getSectionAspectRatio(
   section: Pick<PageSection, "type">,
-  detailAspectRatio: "3:4" | "9:16",
+  detailAspectRatio: SectionImageAspectRatio,
+  uniformAspectRatio?: boolean,
 ): SectionImageAspectRatio {
+  if (uniformAspectRatio) {
+    return detailAspectRatio;
+  }
   return section.type === "HERO" ? "1:1" : detailAspectRatio;
 }
 
@@ -636,7 +640,11 @@ async function generateSectionImageInternal(
   const { provider, adapter } = await getProviderAdapter();
   const generationSettings = getGenerationSettings(project);
   const visualStyleGuide = getProjectVisualStyleGuide(project);
-  const sectionAspectRatio = getSectionAspectRatio(section, generationSettings.imageAspectRatio);
+  const sectionAspectRatio = getSectionAspectRatio(
+    section,
+    generationSettings.imageAspectRatio,
+    generationSettings.uniformAspectRatio,
+  );
   const outputSize = getOutputSize(sectionAspectRatio);
   const modelCandidates = buildImageModelCandidates(provider, options);
   const selectedModel = modelCandidates[0] ?? null;
@@ -897,7 +905,11 @@ export async function editSectionImage(
   const { provider, adapter } = await getProviderAdapter();
   const generationSettings = getGenerationSettings(project);
   const visualStyleGuide = getProjectVisualStyleGuide(project);
-  const sectionAspectRatio = getSectionAspectRatio(section, generationSettings.imageAspectRatio);
+  const sectionAspectRatio = getSectionAspectRatio(
+    section,
+    generationSettings.imageAspectRatio,
+    generationSettings.uniformAspectRatio,
+  );
   const outputSize = getOutputSize(sectionAspectRatio);
   const modelCandidates = buildImageModelCandidates(provider, {
     preferredModelId: options?.preferredModelId,

@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 无运行时依赖，只导出领域常量和公开类型
- * [OUTPUT]: 对外提供平台/风格/能力/角色标签，以及 Studio 对话生图的视图类型
+ * [OUTPUT]: 对外提供平台/风格/能力/角色标签，以及 Studio 对话生图、商品套图的视图类型
  * [POS]: types/ 的唯一公开契约，被页面、校验和服务同时消费
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -167,6 +167,243 @@ export interface StudioConversationSummary {
 
 export interface StudioConversationView extends StudioConversationSummary {
   messages: StudioMessageView[];
+}
+
+export const listingSetMarkets = ["cn", "sea", "west"] as const;
+
+export type ListingSetMarket = (typeof listingSetMarkets)[number];
+
+export const listingSetMarketLabels: Record<ListingSetMarket, string> = {
+  cn: "中国",
+  sea: "东南亚",
+  west: "欧美",
+};
+
+export const listingSetSlotKeys = [
+  "hero_white",
+  "scene",
+  "model",
+  "detail",
+  "selling",
+  "specs",
+  "usage",
+  "comparison",
+  "material",
+] as const;
+
+export type ListingSetSlotKey = (typeof listingSetSlotKeys)[number];
+
+export const listingSetSlotCatalog: Record<
+  ListingSetSlotKey,
+  {
+    label: string;
+    hint: string;
+    sectionType: SectionTypeKey;
+    defaultCount: number;
+    noTextInImage: boolean;
+  }
+> = {
+  hero_white: {
+    label: "主图（白底/合规）",
+    hint: "纯白底、无字无标，符合平台主图规范。",
+    sectionType: "hero",
+    defaultCount: 1,
+    noTextInImage: true,
+  },
+  scene: {
+    label: "场景展示",
+    hint: "生活场景里把商品用起来，先建立氛围。",
+    sectionType: "scenario",
+    defaultCount: 1,
+    noTextInImage: true,
+  },
+  model: {
+    label: "模特场景图",
+    hint: "真人出镜，交代尺度、佩戴或使用方式。",
+    sectionType: "scenario",
+    defaultCount: 1,
+    noTextInImage: true,
+  },
+  detail: {
+    label: "细节说明",
+    hint: "特写结构，图内标注 2-3 个真实部件。",
+    sectionType: "detail_closeup",
+    defaultCount: 1,
+    noTextInImage: false,
+  },
+  selling: {
+    label: "卖点详解",
+    hint: "把核心卖点做成可阅读的商业信息图。",
+    sectionType: "selling_points",
+    defaultCount: 1,
+    noTextInImage: false,
+  },
+  specs: {
+    label: "规格参数",
+    hint: "尺寸、材质、参数一张讲清楚。",
+    sectionType: "specs",
+    defaultCount: 1,
+    noTextInImage: false,
+  },
+  usage: {
+    label: "使用场景",
+    hint: "典型使用瞬间，降低想象成本。",
+    sectionType: "scenario",
+    defaultCount: 1,
+    noTextInImage: true,
+  },
+  comparison: {
+    label: "对比说明",
+    hint: "和常见替代方案比出差异。",
+    sectionType: "comparison",
+    defaultCount: 0,
+    noTextInImage: false,
+  },
+  material: {
+    label: "材质工艺",
+    hint: "材质纹理和做工特写。",
+    sectionType: "material",
+    defaultCount: 0,
+    noTextInImage: false,
+  },
+};
+
+export const defaultListingSetSlotKeys: ListingSetSlotKey[] = [
+  "hero_white",
+  "scene",
+  "model",
+  "detail",
+  "selling",
+  "specs",
+  "usage",
+];
+
+export const listingSetGroupKeys = ["white", "scene", "selling", "other"] as const;
+
+export type ListingSetGroupKey = (typeof listingSetGroupKeys)[number];
+
+export const listingSetGroupCatalog: Record<
+  ListingSetGroupKey,
+  {
+    label: string;
+    hint: string;
+    keys: ListingSetSlotKey[];
+    defaultCount: number;
+    minCount: number;
+    aiMatch: boolean;
+  }
+> = {
+  white: {
+    label: "白底图",
+    hint: "白底主图，多角度呈现商品细节",
+    keys: ["hero_white"],
+    defaultCount: 1,
+    minCount: 1,
+    aiMatch: false,
+  },
+  scene: {
+    label: "场景图",
+    hint: "展示商品的生活使用场景和人物搭配",
+    keys: ["scene", "model", "usage"],
+    defaultCount: 2,
+    minCount: 0,
+    aiMatch: false,
+  },
+  selling: {
+    label: "卖点图",
+    hint: "展示商品的核心卖点及细节特写",
+    keys: ["selling", "detail"],
+    defaultCount: 2,
+    minCount: 0,
+    aiMatch: false,
+  },
+  other: {
+    label: "其他",
+    hint: "对比图、尺寸图等，根据商品智能匹配",
+    keys: ["specs", "comparison", "material"],
+    defaultCount: 2,
+    minCount: 0,
+    aiMatch: true,
+  },
+};
+
+export const defaultListingSetGroupCounts = Object.fromEntries(
+  listingSetGroupKeys.map((key) => [key, listingSetGroupCatalog[key].defaultCount]),
+) as Record<ListingSetGroupKey, number>;
+
+export function expandListingSetGroupCounts(counts: Partial<Record<ListingSetGroupKey, number>>): ListingSetSlotKey[] {
+  const keys: ListingSetSlotKey[] = [];
+  for (const group of listingSetGroupKeys) {
+    const pool = listingSetGroupCatalog[group].keys;
+    const count = Math.max(0, Math.round(Number(counts[group] ?? 0)));
+    for (let index = 0; index < count; index += 1) {
+      keys.push(pool[index % pool.length]);
+    }
+  }
+  return keys;
+}
+
+export const listingSetMinSlotCount = 7;
+export const listingSetMaxSlotCount = 10;
+export const listingSetMaxSourceImages = 6;
+
+export interface ListingSetCopy {
+  productName: string;
+  listingTitle: string;
+  sellingPoints: string[];
+  description: string;
+  keywords: string[];
+}
+
+export interface ListingSetViralStyle {
+  summary: string;
+  visualTropes: string[];
+  colorMood: string;
+  avoid: string[];
+}
+
+export interface ListingSetSlotView {
+  key: string;
+  slotKey: ListingSetSlotKey;
+  sectionId: string | null;
+  order: number;
+  label: string;
+  title: string;
+  goal: string;
+  status: "idle" | "queued" | "generating" | "success" | "failed";
+  imageUrl: string | null;
+  errorMessage: string | null;
+}
+
+export interface ListingSetProjectSummary {
+  id: string;
+  name: string;
+  platform: string;
+  updatedAt: string;
+  coverImageUrl: string | null;
+  slotCount: number;
+  status: string;
+  latestTaskId: string | null;
+  latestTaskStatus: string | null;
+}
+
+export interface ListingSetView {
+  id: string;
+  name: string;
+  platform: string;
+  status: string;
+  aspectRatio: "1:1" | "3:4" | "9:16";
+  contentLanguage: string;
+  market: ListingSetMarket;
+  sellingPoints: string;
+  listingCopy: ListingSetCopy | null;
+  viralStyle: ListingSetViralStyle | null;
+  sourceImages: Array<{ id: string; url: string; fileName: string }>;
+  slots: ListingSetSlotView[];
+  latestTaskId: string | null;
+  latestTaskStatus: string | null;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export type PlatformOption = (typeof platformOptions)[number];
