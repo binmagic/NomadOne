@@ -1,8 +1,8 @@
 ﻿"use client";
 
 /**
- * [INPUT]: 依赖 useEditorStore、StatusBadge、生成/导出 API、preview-config 的输出张数契约
- * [OUTPUT]: 对外提供 EditorWorkspace；模块树展示序号、标题、类型与生成状态
+ * [INPUT]: 依赖 useEditorStore、StatusBadge、生成/导出/rewrite-visual-prompt API、preview-config 的输出张数契约
+ * [OUTPUT]: 对外提供 EditorWorkspace；模块树展示序号、标题、类型与生成状态；右栏可按当前文案重写双语视觉 Prompt
  * [POS]: components/editor 的工作台主界面
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -257,6 +257,7 @@ function getActionText(action: string | null) {
   if (action === "regenerate") return "正在重新生成当前模块图，请稍候...";
   if (action === "repaint") return "正在基于当前图重绘，请稍候...";
   if (action === "enhance") return "正在基于当前图增强，请稍候...";
+  if (action === "rewrite-prompt") return "正在按当前标题和文案重新生成 Prompt，请稍候...";
   return "";
 }
 
@@ -462,6 +463,39 @@ export function EditorWorkspace({ project: initialProject }: EditorWorkspaceProp
       sections: current.sections.map((section: any) => (section.id === selectedSection?.id ? { ...section, [key]: value } : section)),
     }));
   };
+
+  const rewriteSelectedPrompt = async () => {
+    if (!selectedSection) return;
+    const sectionId = selectedSection.id;
+    setRunningAction("rewrite-prompt");
+
+    try {
+      const response = await fetch(`/api/projects/${project.id}/sections/${sectionId}/rewrite-visual-prompt`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: selectedSection.title,
+          goal: selectedSection.goal,
+          copy: selectedSection.copy,
+        }),
+      });
+      const payload = await response.json();
+      if (!payload.success) {
+        toast.error(payload.error?.message ?? "Prompt 重新生成失败");
+        return;
+      }
+      setProject((current: any) => ({
+        ...current,
+        sections: current.sections.map((section: any) =>
+          section.id === sectionId ? { ...section, visualPrompt: payload.data.visualPrompt } : section,
+        ),
+      }));
+      toast.success("双语视觉 Prompt 已按当前文案重写");
+    } finally {
+      setRunningAction(null);
+    }
+  };
+
   return (
     <div className="grid min-h-0 gap-6 xl:grid-cols-[320px_minmax(0,1fr)_380px] xl:items-stretch">
       <Card className="flex min-h-0 min-w-0 flex-col xl:h-[920px]">
@@ -720,9 +754,22 @@ export function EditorWorkspace({ project: initialProject }: EditorWorkspaceProp
               </div>
 
               <div className="space-y-2">
-                <Label>双语视觉 Prompt</Label>
+                <div className="flex items-center justify-between gap-2">
+                  <Label>双语视觉 Prompt</Label>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="gap-2"
+                    onClick={rewriteSelectedPrompt}
+                    disabled={!selectedSection || Boolean(runningAction)}
+                  >
+                    {runningAction === "rewrite-prompt" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                    重新生成 Prompt
+                  </Button>
+                </div>
                 <Textarea value={selectedSection.visualPrompt} onChange={(event) => updateSelectedSection("visualPrompt", event.target.value)} />
-                <p className="text-xs text-muted-foreground">系统会要求图像模型把标题、卖点和 CTA 直接生成进图片中，而不是在页面外拼接文字。</p>
+                <p className="text-xs text-muted-foreground">改标题或文案后，先点重新生成 Prompt，再生成当前图，图内文字才会跟着变。</p>
               </div>
 
               <div className="space-y-2">

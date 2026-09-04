@@ -10,6 +10,7 @@ provider-service.ts: Provider 按用户隔离；isActive 的 updateMany 必须 w
 workflow-task-service.ts: 每用户一个 __nomadone_system_task__ 占位项目；后台任务 withUser + provider credentials 双 ALS
 task-service.ts: getOwnedTask 经 project.userId 过滤；内部 getTask 仍按 id
 generation-service.ts / planner-service.ts / analysis-service.ts / xiaohongshu-service.ts / listing-set-service.ts: 通过 getProviderAdapter 间接收到当前用户；分析写快照必须 merge previewConfig；规划张数读 preview-config 契约
+visual-prompt-rewrite-service.ts: 按当前 title/goal/copy 重写单模块双语 visualPrompt，经 updateSection 写回；失败时双语兜底，不整页规划、不写生图 Agent 长 prompt
 listing-set-service.ts: 商品套图按 userId 隔离；enqueueListingSetGenerate 建 LISTING_SET 项目后入队，后台 plan + generateSectionImage；主图槽位 noTextInImage
 studio-service.ts: 对话生图按 userId 隔离；enqueueStudioMessage 立刻写 PENDING，后台 withUser+凭证 ALS 跑 generateImage/editImage
 export-service.ts: 导出前由路由层 assertProjectOwned

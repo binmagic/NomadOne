@@ -1,3 +1,9 @@
+/**
+ * [INPUT]: 依赖 visual-prompt schema、ProviderAdapter、content-language、visual-style-guide
+ * [OUTPUT]: 对外提供 buildVisualPromptWithAgent，把模块任务扩成生图用长 prompt
+ * [POS]: lib/services 的出图前扩写层。图内字跟 title/copy，不跟旧 visualPrompt 里的口号
+ * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+ */
 import type { ProductAsset } from "@prisma/client";
 
 import { visualPromptAgentSchema } from "@/lib/ai/schemas/visual-prompt";
@@ -105,6 +111,7 @@ function buildAgentPrompt(input: BuildVisualPromptInput) {
     "",
     "Important constraints:",
     "- Preserve the product/object identity from reference images. The main product image is the factual source of truth for category, geometry, count of parts, colors, labels, openings, mechanisms, proportions and material. Do not invent a different product.",
+    "- In-image headline, selling points, supporting copy and CTA must match title and copy. If basePrompt uses different slogans, discard those words and follow title/copy.",
     "- All visible text must be clear, correctly spelled, and in the target content language.",
     "- Do not create category mistakes or impossible mechanics: no reversed airflow, cables entering furniture, floating unsupported objects, liquid flowing upward, broken shadows, impossible reflections, wrong hinges/openings, wrong cube layer count, wrong tile grid, wrong corner/edge/center structure, or hands passing through objects.",
     "- Avoid vague words alone. Make every visual choice concrete.",

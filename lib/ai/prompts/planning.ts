@@ -1,7 +1,7 @@
 /**
  * [INPUT]: 依赖 product-analysis schema、domain 标签、content-language、preview-config 的默认张数
  * [OUTPUT]: 对外提供 buildSectionPlanningPrompt、buildVisualStyleGuidePrompt
- * [POS]: lib/ai/prompts 的详情页规划提示词，detailSectionCount=0 时只规划头图
+ * [POS]: lib/ai/prompts 的详情页规划提示词，detailSectionCount=0 时只规划头图。visualPrompt 必须逐字引用该模块 title/copy 作为图内字
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 import type { ProductAnalysisOutput } from "@/lib/ai/schemas/product-analysis";
@@ -87,10 +87,14 @@ export function buildSectionPlanningPrompt(
     "Each section item must include: id, type, title, goal, copy, visualPrompt, editableFields.",
     "Each section.visualPrompt must explicitly cite how it follows the shared visualStyleGuide: same palette, background system, lighting, typography, CTA style, safe margins, product rendering rules, and negative constraints.",
     `All user-facing section titles, goals, copy, and in-image text instructions must be written in ${targetLanguage}.`,
+    "Write each section in this order: title, goal, copy, then visualPrompt.",
+    "title is the exact in-image headline. copy is the exact in-image selling points, supporting copy, and CTA.",
+    "visualPrompt is a visual direction derived from that title and copy, not a second set of slogans.",
+    "visualPrompt must quote title and copy verbatim as the in-image words. Do not invent a different headline, slogan, selling point, or CTA inside visualPrompt.",
     "visualPrompt must use this exact two-part format:",
-    `Primary Prompt: <visual direction in ${targetLanguage}>`,
-    "English Prompt: <English image prompt>",
-    "The visualPrompt must explicitly require the image model to generate the marketing title, selling points, supporting copy, and CTA directly inside the image, instead of relying on external DOM text.",
+    `Primary Prompt: <visual direction in ${targetLanguage}, including the verbatim title and copy as in-image text>`,
+    "English Prompt: <English image prompt that specifies the same verbatim in-image words as title and copy>",
+    "The visualPrompt must explicitly require the image model to generate those exact title and copy words directly inside the image, instead of relying on external DOM text.",
     `Allowed section types: ${sectionTypeGuide}`,
     "editableFields should include at least one of: sellingPoints, tone, compositionHint.",
     "editableFields must also include styleRole, sharedStyleAnchors, and localVariation. styleRole describes this section role inside the shared visual system. sharedStyleAnchors lists the visual elements that must remain identical with the rest of the project. localVariation describes what can change only in this one image.",

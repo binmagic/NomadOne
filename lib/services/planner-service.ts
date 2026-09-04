@@ -1,7 +1,7 @@
 /**
  * [INPUT]: 依赖 prisma、provider adapter、planning prompts/schema、preview-config、task-service
  * [OUTPUT]: 对外提供 planSections、模块增删改排序、视觉规范重算
- * [POS]: lib/services 的详情页规划内核；张数只认 previewConfig，读数走 preview-config 契约
+ * [POS]: lib/services 的详情页规划内核；张数只认 previewConfig，读数走 preview-config 契约。落库时把模块 title/copy 锁进 visualPrompt 作为图内字
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 import { Prisma } from "@prisma/client";
@@ -278,18 +278,24 @@ function normalizeSectionType(type: string) {
   return sectionTypeMap[normalized] ?? "CUSTOM";
 }
 
-function ensureBilingualPrompt(prompt: string, sectionTitle: string) {
+function ensureBilingualPrompt(prompt: string, sectionTitle: string, sectionCopy = "") {
   const trimmed = prompt.trim();
-  if (
+  const title = sectionTitle.trim() || "当前模块";
+  const copy = sectionCopy.trim();
+  const hasBilingualMarkers =
     trimmed.includes("English Prompt:") &&
-    (trimmed.includes("中文提示：") || trimmed.includes("Primary Prompt:"))
-  ) {
-    return trimmed;
-  }
+    (trimmed.includes("中文提示：") || trimmed.includes("Primary Prompt:"));
 
-  const primaryPrompt =
-    trimmed || `${sectionTitle}，突出商品主体、商业排版和图内卖点信息，适合移动端电商详情页。`;
-  return `Primary Prompt: ${primaryPrompt}\nEnglish Prompt: A premium e-commerce section visual for ${sectionTitle}, with the marketing copy designed directly inside the image and a strong conversion-focused composition.`;
+  const bilingual = hasBilingualMarkers
+    ? trimmed
+    : `Primary Prompt: ${trimmed || `${title}，突出商品主体、商业排版和图内卖点信息，适合移动端电商详情页。${copy ? `图内文案必须逐字使用：${copy}。` : ""}`}\nEnglish Prompt: A premium e-commerce section visual for ${title}.${copy ? ` In-image copy must use these exact words: ${copy}` : ""} Design the marketing copy directly inside the image and a strong conversion-focused composition.`;
+
+  const locks = [
+    `In-image headline (verbatim): ${title}`,
+    copy ? `In-image copy (verbatim): ${copy}` : "",
+  ].filter((line) => line && !bilingual.includes(line));
+
+  return locks.length ? `${bilingual}\n${locks.join("\n")}` : bilingual;
 }
 
 function normalizeEditableFields(value: unknown): Record<string, unknown> {
@@ -584,7 +590,7 @@ function buildFallbackDetail(index: number) {
     title: template.title,
     goal: template.goal,
     copy: template.copy,
-    visualPrompt: template.visualPrompt,
+    visualPrompt: ensureBilingualPrompt(template.visualPrompt, template.title, template.copy),
     editableData: template.editableFields,
   };
 }
@@ -596,7 +602,7 @@ function buildFallbackHero(index: number) {
     title: template.title,
     goal: template.goal,
     copy: template.copy,
-    visualPrompt: template.visualPrompt,
+    visualPrompt: ensureBilingualPrompt(template.visualPrompt, template.title, template.copy),
     editableData: template.editableFields,
   };
 }
@@ -611,7 +617,7 @@ function buildNormalizedSections(
     title: section.title || `模块 ${index + 1}`,
     goal: section.goal || "突出商品卖点",
     copy: section.copy || "",
-    visualPrompt: ensureBilingualPrompt(section.visualPrompt || "", section.title || `模块 ${index + 1}`),
+    visualPrompt: ensureBilingualPrompt(section.visualPrompt || "", section.title || `模块 ${index + 1}`, section.copy || ""),
     editableData: normalizeEditableFields(section.editableFields),
   }));
 
@@ -1018,7 +1024,7 @@ export async function createSection(
       title: input.title,
       goal: input.goal,
       copy: input.copy,
-      visualPrompt: ensureBilingualPrompt(input.visualPrompt, input.title),
+      visualPrompt: ensureBilingualPrompt(input.visualPrompt, input.title, input.copy),
       order: count,
       editableData: (input.editableFields ?? {}) as Prisma.InputJsonValue,
     },
@@ -1030,7 +1036,7 @@ export async function createSection(
 export async function updateSection(sectionId: string, input: Record<string, unknown>) {
   const current = await prisma.pageSection.findUnique({
     where: { id: sectionId },
-    select: { projectId: true },
+    select: { projectId: true, title: true, copy: true },
   });
 
   if (!current) {
@@ -1046,7 +1052,11 @@ export async function updateSection(sectionId: string, input: Record<string, unk
 
   const payload = { ...input } as Record<string, unknown>;
   if ("visualPrompt" in payload && typeof payload.visualPrompt === "string") {
-    payload.visualPrompt = ensureBilingualPrompt(payload.visualPrompt, String(payload.title ?? "当前模块"));
+    payload.visualPrompt = ensureBilingualPrompt(
+      payload.visualPrompt,
+      String(payload.title ?? current.title ?? "当前模块"),
+      typeof payload.copy === "string" ? payload.copy : current.copy,
+    );
   }
   if ("type" in payload && typeof payload.type === "string") {
     payload.type = normalizeSectionType(payload.type) as never;

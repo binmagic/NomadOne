@@ -1,8 +1,8 @@
 "use client";
 
 /**
- * [INPUT]: 依赖项目详情、plan-sections API、preview-config、ProjectOutputConfigCard
- * [OUTPUT]: 对外提供 PlannerWorkspace；自动规划把当前 previewConfig 显式交给服务端
+ * [INPUT]: 依赖项目详情、plan-sections API、rewrite-visual-prompt API、preview-config、ProjectOutputConfigCard
+ * [OUTPUT]: 对外提供 PlannerWorkspace；自动规划把当前 previewConfig 显式交给服务端；单模块可按当前文案重写双语视觉 Prompt
  * [POS]: components/planner 的规划工作台，张数只读分析页写入的输出配置
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -142,6 +142,7 @@ export function PlannerWorkspace({ project }: PlannerWorkspaceProps) {
   const [visualStyleGuide, setVisualStyleGuide] = useState<VisualStyleGuide>(getVisualStyleGuide(project));
   const [bulkProgress, setBulkProgress] = useState<BulkProgressState | null>(null);
   const [runningSectionId, setRunningSectionId] = useState<string | null>(null);
+  const [rewritingPromptSectionId, setRewritingPromptSectionId] = useState<string | null>(null);
   const [planningProgress, setPlanningProgress] = useState<PlanningProgressState>({
     stage: "idle",
     detail: "",
@@ -331,6 +332,39 @@ export function PlannerWorkspace({ project }: PlannerWorkspaceProps) {
     const result = await response.json();
     if (!result.success) {
       throw new Error(result.error?.message ?? "模块保存失败");
+    }
+  };
+
+  const persistRewrittenPrompt = async (section: any) => {
+    const response = await fetch(`/api/projects/${project.id}/sections/${section.id}/rewrite-visual-prompt`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        title: section.title,
+        goal: section.goal,
+        copy: section.copy,
+      }),
+    });
+    const payload = await response.json();
+    if (!payload.success) {
+      throw new Error(payload.error?.message ?? "Prompt 重新生成失败");
+    }
+    const visualPrompt = payload.data.visualPrompt as string;
+    setSections((current: any[]) =>
+      current.map((item) => (item.id === section.id ? { ...item, visualPrompt } : item)),
+    );
+    return visualPrompt;
+  };
+
+  const rewriteSectionPrompt = async (section: any) => {
+    setRewritingPromptSectionId(section.id);
+    try {
+      await persistRewrittenPrompt(section);
+      toast.success("双语视觉 Prompt 已按当前文案重写");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Prompt 重新生成失败");
+    } finally {
+      setRewritingPromptSectionId(null);
     }
   };
 
@@ -876,7 +910,22 @@ export function PlannerWorkspace({ project }: PlannerWorkspaceProps) {
                       </div>
                     </div>
                     <div className="space-y-2">
-                      <Label>双语视觉 Prompt</Label>
+                      <div className="flex items-center justify-between gap-2">
+                        <Label>双语视觉 Prompt</Label>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => rewriteSectionPrompt(section)}
+                          disabled={rewritingPromptSectionId === section.id || runningSectionId === section.id}
+                        >
+                          {rewritingPromptSectionId === section.id ? (
+                            <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+                          ) : (
+                            <Sparkles className="mr-1 h-4 w-4" />
+                          )}
+                          重新生成 Prompt
+                        </Button>
+                      </div>
                       <Textarea
                         value={section.visualPrompt}
                         onChange={(event) =>
@@ -887,6 +936,7 @@ export function PlannerWorkspace({ project }: PlannerWorkspaceProps) {
                           )
                         }
                       />
+                      <p className="text-xs text-muted-foreground">改标题或文案后，先重写 Prompt，再生成当前图，图内文字才会跟着变。</p>
                     </div>
                     <div className="flex flex-wrap gap-2">
                       <Button variant="outline" size="sm" onClick={() => moveSectionWithinGroup("hero", section.id, -1)} disabled={index === 0}>
@@ -902,7 +952,7 @@ export function PlannerWorkspace({ project }: PlannerWorkspaceProps) {
                         <ArrowDown className="mr-1 h-4 w-4" />
                         下移
                       </Button>
-                      <Button variant="outline" size="sm" onClick={() => runSingleGeneration(section)} disabled={runningSectionId === section.id}>
+                      <Button variant="outline" size="sm" onClick={() => runSingleGeneration(section)} disabled={runningSectionId === section.id || rewritingPromptSectionId === section.id}>
                         {runningSectionId === section.id ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <ImagePlus className="mr-1 h-4 w-4" />}
                         {section.imageUrl ? "重生成当前头图" : "生成当前头图"}
                       </Button>
@@ -1036,7 +1086,22 @@ export function PlannerWorkspace({ project }: PlannerWorkspaceProps) {
                       </div>
                     </div>
                     <div className="space-y-2">
-                      <Label>双语视觉 Prompt</Label>
+                      <div className="flex items-center justify-between gap-2">
+                        <Label>双语视觉 Prompt</Label>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => rewriteSectionPrompt(section)}
+                          disabled={rewritingPromptSectionId === section.id || runningSectionId === section.id}
+                        >
+                          {rewritingPromptSectionId === section.id ? (
+                            <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+                          ) : (
+                            <Sparkles className="mr-1 h-4 w-4" />
+                          )}
+                          重新生成 Prompt
+                        </Button>
+                      </div>
                       <Textarea
                         value={section.visualPrompt}
                         onChange={(event) =>
@@ -1047,6 +1112,7 @@ export function PlannerWorkspace({ project }: PlannerWorkspaceProps) {
                           )
                         }
                       />
+                      <p className="text-xs text-muted-foreground">改标题或文案后，先重写 Prompt，再生成当前图，图内文字才会跟着变。</p>
                     </div>
                     <div className="flex flex-wrap gap-2">
                       <Button variant="outline" size="sm" onClick={() => moveSectionWithinGroup("detail", section.id, -1)} disabled={index === 0}>
@@ -1062,7 +1128,7 @@ export function PlannerWorkspace({ project }: PlannerWorkspaceProps) {
                         <ArrowDown className="mr-1 h-4 w-4" />
                         下移
                       </Button>
-                      <Button variant="outline" size="sm" onClick={() => runSingleGeneration(section)} disabled={runningSectionId === section.id}>
+                      <Button variant="outline" size="sm" onClick={() => runSingleGeneration(section)} disabled={runningSectionId === section.id || rewritingPromptSectionId === section.id}>
                         {runningSectionId === section.id ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <ImagePlus className="mr-1 h-4 w-4" />}
                         {section.imageUrl ? "重生成当前详情页" : "生成当前详情页"}
                       </Button>

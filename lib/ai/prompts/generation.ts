@@ -1,3 +1,9 @@
+/**
+ * [INPUT]: 依赖 Prisma PageSection/ProductAsset、content-language
+ * [OUTPUT]: 对外提供详情页生图/重绘/增强/翻译/SVG 布局提示词
+ * [POS]: lib/ai/prompts 的出图口径。图内字以 title/copy 为准，visualPrompt 只负责构图
+ * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+ */
 import type { PageSection, ProductAsset } from "@prisma/client";
 
 import {
@@ -76,6 +82,7 @@ export function buildSectionImagePrompt(
     `Section goal: ${section.goal}`,
     `Section copy: ${section.copy}`,
     `Visual prompt guidance: ${section.visualPrompt}`,
+    "In-image wording source of truth is the section title and section copy. If visual prompt guidance contains different headlines, selling points, or CTA words, discard those words and use title/copy.",
     buildReferenceText(referenceAssets),
     buildMainImageInstruction(referenceAssets),
     buildAspectInstruction(aspectRatio),
@@ -147,6 +154,7 @@ export function buildSectionSvgLayoutPrompt(
     `Section goal: ${section.goal}`,
     `Section copy: ${section.copy}`,
     `Visual prompt guidance: ${section.visualPrompt}`,
+    "In-image wording source of truth is the section title and section copy. If visual prompt guidance contains different headlines, selling points, or CTA words, discard those words and use title/copy.",
     `Target aspect ratio: ${aspectRatio}`,
     buildReferenceText(referenceAssets),
     "Use the main uploaded product image as the product identity reference when composing the layout.",
