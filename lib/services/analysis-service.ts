@@ -1,3 +1,9 @@
+/**
+ * [INPUT]: 依赖 prisma、provider adapter、task-service、asset 读盘、product-analysis schema/prompt、mergeProjectSnapshot
+ * [OUTPUT]: 对外提供 analyzeProject、updateAnalysis
+ * [POS]: lib/services 的商品分析内核；写回 modelSnapshot 时只 merge 分析元数据，不得覆盖 previewConfig
+ * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+ */
 import { Prisma } from "@prisma/client";
 import { ZodError } from "zod";
 
@@ -7,6 +13,7 @@ import { prisma } from "@/lib/db/prisma";
 import { getProviderAdapter } from "@/lib/services/provider-service";
 import { completeTask, createTask, failTask, findRecentRunningTask } from "@/lib/services/task-service";
 import { readStorageFile } from "@/lib/storage/asset-manager";
+import { mergeProjectSnapshot } from "@/lib/utils/model-snapshot";
 
 function normalizeModelId(value: string) {
   return value.toLowerCase();
@@ -278,14 +285,19 @@ export async function analyzeProject(projectId: string, preferredModelId?: strin
       },
     });
 
+    const latest = await prisma.project.findUnique({
+      where: { id: projectId },
+      select: { modelSnapshot: true },
+    });
+
     await prisma.project.update({
       where: { id: projectId },
       data: {
         status: "ANALYZED",
-        modelSnapshot: {
+        modelSnapshot: mergeProjectSnapshot(latest?.modelSnapshot, {
           analysisModelId: model,
           providerConfigId: provider.id,
-        },
+        }) as Prisma.InputJsonValue,
       },
     });
 

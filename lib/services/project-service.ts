@@ -1,20 +1,17 @@
+/**
+ * [INPUT]: 依赖 prisma、asset-manager、preview-config、mergeProjectSnapshot
+ * [OUTPUT]: 对外提供项目 CRUD、所有权断言；updateProject 合并快照后再按 previewConfig 裁切多余模块
+ * [POS]: lib/services 的项目内核，JSON 快照的服务端合并闸门
+ * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+ */
 import fs from "fs/promises";
 import path from "path";
 
 import { prisma } from "@/lib/db/prisma";
 import { assetPublicUrl, deleteAssetRecord } from "@/lib/storage/asset-manager";
 import { env } from "@/lib/utils/env";
-import { clampDetailSectionCount, clampHeroImageCount } from "@/lib/utils/preview-config";
-
-function readPreviewConfig(snapshot: unknown) {
-  const data = (snapshot as Record<string, unknown> | null) ?? {};
-  const previewConfig = (data.previewConfig as Record<string, unknown> | null) ?? {};
-
-  return {
-    heroImageCount: clampHeroImageCount(previewConfig.heroImageCount),
-    detailSectionCount: clampDetailSectionCount(previewConfig.detailSectionCount),
-  };
-}
+import { mergeProjectSnapshot } from "@/lib/utils/model-snapshot";
+import { readPreviewConfig } from "@/lib/utils/preview-config";
 
 async function deleteAssetIfUnreferenced(assetId: string | null | undefined) {
   if (!assetId) {
@@ -204,19 +201,27 @@ export async function getProjectDetail(projectId: string, userId: string) {
 export async function updateProject(projectId: string, userId: string, input: Record<string, unknown>) {
   const owned = await prisma.project.findFirst({
     where: { id: projectId, userId },
-    select: { id: true },
+    select: { id: true, modelSnapshot: true },
   });
   if (!owned) {
     return null;
   }
 
+  const data = { ...input };
+  if (input.modelSnapshot && typeof input.modelSnapshot === "object" && !Array.isArray(input.modelSnapshot)) {
+    data.modelSnapshot = mergeProjectSnapshot(
+      owned.modelSnapshot,
+      input.modelSnapshot as Record<string, unknown>,
+    );
+  }
+
   await prisma.project.update({
     where: { id: projectId },
-    data: input,
+    data,
   });
 
-  if ("modelSnapshot" in input) {
-    await pruneProjectToPreviewConfig(projectId, input.modelSnapshot);
+  if ("modelSnapshot" in data) {
+    await pruneProjectToPreviewConfig(projectId, data.modelSnapshot);
   }
 
   return getProjectDetail(projectId, userId);

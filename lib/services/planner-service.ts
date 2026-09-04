@@ -1,3 +1,9 @@
+/**
+ * [INPUT]: 依赖 prisma、provider adapter、planning prompts/schema、preview-config、task-service
+ * [OUTPUT]: 对外提供 planSections、模块增删改排序、视觉规范重算
+ * [POS]: lib/services 的详情页规划内核；张数只认 previewConfig，读数走 preview-config 契约
+ * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+ */
 import { Prisma } from "@prisma/client";
 import { nanoid } from "nanoid";
 import { z } from "zod";
@@ -8,15 +14,14 @@ import { prisma } from "@/lib/db/prisma";
 import { readStorageFile } from "@/lib/storage/asset-manager";
 import { getProviderAdapter } from "@/lib/services/provider-service";
 import { completeTask, createTask, failTask, findRecentRunningTask } from "@/lib/services/task-service";
-import { contentLanguageOptions, normalizeContentLanguage, type ContentLanguage } from "@/lib/utils/content-language";
+import { contentLanguageOptions, type ContentLanguage } from "@/lib/utils/content-language";
 import {
   DETAIL_SECTION_COUNT_AUTO_MIN,
-  DETAIL_SECTION_COUNT_DEFAULT,
   DETAIL_SECTION_COUNT_MAX,
   DETAIL_SECTION_COUNT_MIN,
-  HERO_IMAGE_COUNT_DEFAULT,
   HERO_IMAGE_COUNT_MAX,
   HERO_IMAGE_COUNT_MIN,
+  readPreviewConfig as readStoredPreviewConfig,
 } from "@/lib/utils/preview-config";
 import { buildDefaultVisualStyleGuide, hasVisualStyleGuide, normalizeVisualStyleGuide, readVisualStyleGuide } from "@/lib/utils/visual-style-guide";
 import type { SectionTypeKey } from "@/types/domain";
@@ -337,13 +342,7 @@ async function collectPlanningReferenceImages(assets: PlanningAsset[]) {
 }
 
 function readPreviewConfig(snapshot: unknown): PreviewConfigInput {
-  const raw = ((snapshot as Record<string, unknown> | null) ?? {}).previewConfig;
-  return previewConfigSchema.parse({
-    heroImageCount: Number((raw as Record<string, unknown> | null)?.heroImageCount ?? HERO_IMAGE_COUNT_DEFAULT),
-    detailSectionCount: Number((raw as Record<string, unknown> | null)?.detailSectionCount ?? DETAIL_SECTION_COUNT_DEFAULT),
-    imageAspectRatio: ((raw as Record<string, unknown> | null)?.imageAspectRatio ?? "9:16") as "3:4" | "9:16",
-    contentLanguage: normalizeContentLanguage((raw as Record<string, unknown> | null)?.contentLanguage),
-  });
+  return previewConfigSchema.parse(readStoredPreviewConfig(snapshot));
 }
 
 function buildProjectVisualStyleGuideFallback(project: { style: string; platform: string; analysis?: { normalizedResult: unknown } | null }) {
@@ -396,10 +395,10 @@ function pickMultimodalPlanningModel(models: PlanningModelRecord[], preferredMod
 }
 
 function readPreviewMeta(snapshot: unknown) {
-  const raw = ((snapshot as Record<string, unknown> | null) ?? {}).previewConfig as Record<string, unknown> | null;
+  const config = readStoredPreviewConfig(snapshot);
   return {
-    imageAspectRatio: raw?.imageAspectRatio === "3:4" ? "3:4" : "9:16",
-    contentLanguage: normalizeContentLanguage(raw?.contentLanguage),
+    imageAspectRatio: config.imageAspectRatio,
+    contentLanguage: config.contentLanguage,
   } as const;
 }
 

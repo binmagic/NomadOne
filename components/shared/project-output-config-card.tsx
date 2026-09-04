@@ -2,17 +2,16 @@
 
 /**
  * [INPUT]: 依赖 preview-config 的张数边界与读取、content-language、项目 PATCH API
- * [OUTPUT]: 对外提供 ProjectOutputConfigCard；分析页可编辑，规划/编辑/导出页只读
- * [POS]: components/shared 的输出配置入口，详情页数量允许 0 张
+ * [OUTPUT]: 对外提供 ProjectOutputConfigCard、waitForProjectOutputConfigFlush；分析页改完即写入，规划/编辑/导出页只读
+ * [POS]: components/shared 的输出配置入口，详情页数量允许 0 张；进入规划前必须 flush 未完成写入
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Loader2, Settings2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import {
@@ -33,6 +32,20 @@ type ProjectConfigCardProject = {
   id: string;
   modelSnapshot: unknown;
 } | null;
+
+let outputConfigSaveChain: Promise<void> = Promise.resolve();
+
+function enqueueOutputConfigSave(task: () => Promise<void>) {
+  outputConfigSaveChain = outputConfigSaveChain.then(task, task);
+  return outputConfigSaveChain;
+}
+
+export function waitForProjectOutputConfigFlush() {
+  return outputConfigSaveChain.then(
+    () => undefined,
+    () => undefined,
+  );
+}
 
 function OutputConfigSummary({ config }: { config: PreviewConfig }) {
   return (
@@ -74,49 +87,53 @@ export function ProjectOutputConfigCard({
   const initialConfig = useMemo(() => readPreviewConfig(project?.modelSnapshot), [project?.modelSnapshot]);
   const [formState, setFormState] = useState<PreviewConfig>(initialConfig);
   const [saving, setSaving] = useState(false);
+  const saveGenerationRef = useRef(0);
 
   if (!project) {
     return null;
   }
 
-  const hasChanges =
-    formState.heroImageCount !== initialConfig.heroImageCount ||
-    formState.detailSectionCount !== initialConfig.detailSectionCount ||
-    formState.imageAspectRatio !== initialConfig.imageAspectRatio ||
-    formState.contentLanguage !== initialConfig.contentLanguage;
+  const persistConfig = (next: PreviewConfig) => {
+    const saveId = saveGenerationRef.current + 1;
+    saveGenerationRef.current = saveId;
+    setSaving(true);
 
-  const saveConfig = async () => {
-    try {
-      setSaving(true);
-      const snapshot = ((project.modelSnapshot as Record<string, unknown> | null) ?? {}) as Record<string, unknown>;
-      const response = await fetch(`/api/projects/${project.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          modelSnapshot: {
-            ...snapshot,
-            previewConfig: {
-              ...((snapshot.previewConfig as Record<string, unknown> | null) ?? {}),
-              heroImageCount: formState.heroImageCount,
-              detailSectionCount: formState.detailSectionCount,
-              imageAspectRatio: formState.imageAspectRatio,
-              contentLanguage: formState.contentLanguage,
+    return enqueueOutputConfigSave(async () => {
+      try {
+        const response = await fetch(`/api/projects/${project.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            modelSnapshot: {
+              previewConfig: {
+                heroImageCount: next.heroImageCount,
+                detailSectionCount: next.detailSectionCount,
+                imageAspectRatio: next.imageAspectRatio,
+                contentLanguage: next.contentLanguage,
+              },
             },
-          },
-        }),
-      });
-      const payload = await response.json();
-      if (!payload.success) {
-        throw new Error(payload.error?.message ?? "输出配置保存失败");
+          }),
+        });
+        const payload = await response.json();
+        if (!payload.success) {
+          throw new Error(payload.error?.message ?? "输出配置保存失败");
+        }
+        router.refresh();
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "输出配置保存失败");
+        throw error;
+      } finally {
+        if (saveGenerationRef.current === saveId) {
+          setSaving(false);
+        }
       }
+    });
+  };
 
-      toast.success("输出配置已保存");
-      router.refresh();
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "输出配置保存失败");
-    } finally {
-      setSaving(false);
-    }
+  const updateConfig = (patch: Partial<PreviewConfig>) => {
+    const next = { ...formState, ...patch };
+    setFormState(next);
+    void persistConfig(next);
   };
 
   if (!editable) {
@@ -130,11 +147,19 @@ export function ProjectOutputConfigCard({
   }
 
   return (
-      <Card className="border-dashed bg-muted/30 dark:bg-white/[0.03]">
+    <Card className="border-dashed bg-muted/30 dark:bg-white/[0.03]">
       <CardHeader className="pb-4">
         <CardTitle className="flex items-center gap-2 text-base">
           <Settings2 className="h-4 w-4 text-sky-600" />
           输出配置
+          {saving ? (
+            <span className="ml-auto flex items-center text-xs font-normal text-muted-foreground">
+              <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+              正在保存
+            </span>
+          ) : (
+            <span className="ml-auto text-xs font-normal text-muted-foreground">改动会立即写入项目</span>
+          )}
         </CardTitle>
         <CardDescription>这里调整的语言、头图数量、详情页数量和比例，会直接影响后续规划、生成与导出。</CardDescription>
       </CardHeader>
@@ -146,10 +171,9 @@ export function ProjectOutputConfigCard({
               className="flex h-10 w-full rounded-xl border border-input bg-white px-3 text-sm dark:bg-black/30 dark:text-slate-100"
               value={formState.contentLanguage}
               onChange={(event) =>
-                setFormState((current) => ({
-                  ...current,
+                updateConfig({
                   contentLanguage: normalizeContentLanguage(event.target.value),
-                }))
+                })
               }
             >
               {contentLanguageOptions.map((option) => (
@@ -165,10 +189,9 @@ export function ProjectOutputConfigCard({
               className="flex h-10 w-full rounded-xl border border-input bg-white px-3 text-sm dark:bg-black/30 dark:text-slate-100"
               value={String(formState.heroImageCount)}
               onChange={(event) =>
-                setFormState((current) => ({
-                  ...current,
+                updateConfig({
                   heroImageCount: clampHeroImageCount(event.target.value),
-                }))
+                })
               }
             >
               {heroImageCountOptions.map((count) => (
@@ -184,10 +207,9 @@ export function ProjectOutputConfigCard({
               className="flex h-10 w-full rounded-xl border border-input bg-white px-3 text-sm dark:bg-black/30 dark:text-slate-100"
               value={String(formState.detailSectionCount)}
               onChange={(event) =>
-                setFormState((current) => ({
-                  ...current,
+                updateConfig({
                   detailSectionCount: clampDetailSectionCount(event.target.value),
-                }))
+                })
               }
             >
               {detailSectionCountOptions.map((count) => (
@@ -204,10 +226,9 @@ export function ProjectOutputConfigCard({
               className="flex h-10 w-full rounded-xl border border-input bg-white px-3 text-sm dark:bg-black/30 dark:text-slate-100"
               value={formState.imageAspectRatio}
               onChange={(event) =>
-                setFormState((current) => ({
-                  ...current,
+                updateConfig({
                   imageAspectRatio: event.target.value === "3:4" ? "3:4" : "9:16",
-                }))
+                })
               }
             >
               <option value="9:16">9:16</option>
@@ -217,13 +238,6 @@ export function ProjectOutputConfigCard({
         </div>
 
         <OutputConfigSummary config={formState} />
-
-        <div className="flex justify-end">
-          <Button onClick={saveConfig} disabled={saving || !hasChanges} className="rounded-xl">
-            {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-            保存输出配置
-          </Button>
-        </div>
       </CardContent>
     </Card>
   );

@@ -9,7 +9,7 @@ chunk-reload-guard.tsx: ChunkLoadError 时会话内自动刷新一次。
 confirm-dialog.tsx: 确认弹窗，portal 到 body。
 notice-card.tsx: info/success/warning/error 提示卡。
 page-header.tsx: 页头标题与描述。
-project-output-config-card.tsx: 项目输出配置入口，详情页数量允许 0 张。
+project-output-config-card.tsx: 项目输出配置入口。分析页改完即写入，进入规划前可 flush；详情页数量允许 0 张。
 status-badge.tsx: 项目/任务状态徽章。
 
 法则: 成员完整·一行一文件·父级链接·技术词前置

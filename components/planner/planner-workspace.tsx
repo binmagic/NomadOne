@@ -1,5 +1,11 @@
 "use client";
 
+/**
+ * [INPUT]: 依赖项目详情、plan-sections API、preview-config、ProjectOutputConfigCard
+ * [OUTPUT]: 对外提供 PlannerWorkspace；自动规划把当前 previewConfig 显式交给服务端
+ * [POS]: components/planner 的规划工作台，张数只读分析页写入的输出配置
+ * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+ */
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
@@ -249,7 +255,7 @@ export function PlannerWorkspace({ project }: PlannerWorkspaceProps) {
       const response = await fetch(`/api/projects/${project.id}/plan-sections`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({}),
+        body: JSON.stringify({ previewConfig }),
       });
 
       setPlanningProgress({

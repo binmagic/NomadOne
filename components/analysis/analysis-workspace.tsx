@@ -1,11 +1,18 @@
 ﻿"use client";
 
-import Link from "next/link";
+/**
+ * [INPUT]: 依赖项目详情、分析 PATCH/ANALYZE API、waitForProjectOutputConfigFlush
+ * [OUTPUT]: 对外提供 AnalysisWorkspace；进入规划前先 flush 输出配置写入
+ * [POS]: components/analysis 的分析工作台，与 ProjectOutputConfigCard 兄弟挂载
+ * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+ */
+import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { ArrowDown, ArrowRight, ArrowUp, Loader2, Sparkles, Star, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { NoticeCard } from "@/components/shared/notice-card";
+import { waitForProjectOutputConfigFlush } from "@/components/shared/project-output-config-card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -60,7 +67,9 @@ export function AnalysisWorkspace({
   initialErrorCode,
   source,
 }: AnalysisWorkspaceProps) {
+  const router = useRouter();
   const [projectState, setProjectState] = useState(project);
+  const [openingPlanner, setOpeningPlanner] = useState(false);
   const [analysis, setAnalysis] = useState(withDefaultAdditionalInformation(project.analysis?.normalizedResult ?? null));
   const [running, setRunning] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -211,6 +220,16 @@ export function AnalysisWorkspace({
     }
     toast.success("主图已更新");
     await refreshProject();
+  };
+
+  const goToPlanner = async () => {
+    setOpeningPlanner(true);
+    try {
+      await waitForProjectOutputConfigFlush();
+      router.push(`/projects/${project.id}/planner`);
+    } finally {
+      setOpeningPlanner(false);
+    }
   };
 
   const saveAnalysis = async () => {
@@ -422,13 +441,16 @@ export function AnalysisWorkspace({
                     {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                     保存分析结果
                   </Button>
-                  <Link
-                    href={`/projects/${project.id}/planner`}
-                    className="inline-flex h-12 items-center justify-center rounded-2xl bg-slate-950 px-6 text-sm font-semibold text-white shadow-[0_18px_34px_-18px_rgba(15,23,42,0.65)] transition hover:-translate-y-0.5 hover:bg-black hover:shadow-[0_22px_40px_-20px_rgba(15,23,42,0.75)] dark:bg-white dark:text-black dark:hover:bg-slate-100"
+                  <button
+                    type="button"
+                    onClick={() => void goToPlanner()}
+                    disabled={openingPlanner}
+                    className="inline-flex h-12 items-center justify-center rounded-2xl bg-slate-950 px-6 text-sm font-semibold text-white shadow-[0_18px_34px_-18px_rgba(15,23,42,0.65)] transition hover:-translate-y-0.5 hover:bg-black hover:shadow-[0_22px_40px_-20px_rgba(15,23,42,0.75)] disabled:pointer-events-none disabled:opacity-60 dark:bg-white dark:text-black dark:hover:bg-slate-100"
                   >
+                    {openingPlanner ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                     进入页面规划
                     <ArrowRight className="ml-2 h-4 w-4" />
-                  </Link>
+                  </button>
                 </div>
               </>
             )}
