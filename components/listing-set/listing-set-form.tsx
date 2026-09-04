@@ -1,5 +1,5 @@
 /**
- * [INPUT]: 依赖 domain 套图目录、content-language、fileToBase64Payload、Button/Textarea
+ * [INPUT]: 依赖 domain 套图目录、content-language、ImageDropzone、Button/Textarea
  * [OUTPUT]: 对外提供 ListingSetForm，收集原图/平台/卖点/槽位后提交
  * [POS]: components/listing-set 的左栏表单，被 ListingSetWorkspace 挂载
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
@@ -10,6 +10,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Check, Loader2, Sparkles, Trash2, UploadCloud } from "lucide-react";
 
+import { ImageDropzone } from "@/components/shared/image-dropzone";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -186,26 +187,23 @@ export function ListingSetForm(props: {
             <Label className="text-sm text-slate-800 dark:text-slate-100">商品原图</Label>
             <span className="text-xs text-slate-400">同一产品，最多 {listingSetMaxSourceImages} 张</span>
           </div>
-          <label className="flex cursor-pointer flex-col items-center justify-center rounded-[1.5rem] border border-dashed border-slate-300 bg-white/60 px-4 py-8 text-center transition hover:bg-slate-50 dark:border-white/15 dark:bg-white/[0.03] dark:hover:bg-white/[0.06]">
-            <input
-              type="file"
-              accept="image/*"
-              multiple
-              className="hidden"
-              disabled={disabled}
-              onChange={(event) => {
-                const picked = Array.from(event.target.files ?? []);
-                const merged = [...values.files, ...picked].slice(0, listingSetMaxSourceImages);
-                onChange({ ...values, files: merged });
-                event.currentTarget.value = "";
-              }}
-            />
+          <ImageDropzone
+            multiple
+            disabled={disabled}
+            captureDocumentDrop
+            aria-label="上传商品原图"
+            className="flex cursor-pointer flex-col items-center justify-center rounded-[1.5rem] border border-dashed border-slate-300 bg-white/60 px-4 py-8 text-center transition hover:bg-slate-50 dark:border-white/15 dark:bg-white/[0.03] dark:hover:bg-white/[0.06]"
+            onFiles={(files) => {
+              const merged = [...values.files, ...files].slice(0, listingSetMaxSourceImages);
+              onChange({ ...values, files: merged });
+            }}
+          >
             <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 bg-white dark:border-white/10 dark:bg-black/30">
               <UploadCloud className="h-4 w-4" />
             </div>
-            <p className="mt-3 text-sm font-medium text-slate-800 dark:text-slate-100">上传图片</p>
+            <p className="mt-3 text-sm font-medium text-slate-800 dark:text-slate-100">点击或拖拽上传图片</p>
             <p className="mt-1 text-xs text-slate-400">白底主图优先，可补角度与细节</p>
-          </label>
+          </ImageDropzone>
           {values.files.length ? (
             <div className="grid grid-cols-3 gap-2">
               {values.files.map((file, index) => (

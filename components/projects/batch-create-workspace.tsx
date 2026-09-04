@@ -1,3 +1,10 @@
+/**
+ * [INPUT]: 依赖 ImageDropzone、fileToBase64Payload、Button
+ * [OUTPUT]: 对外提供 BatchCreateWorkspace。多张产品图点击或拖放后入队 /api/tasks/batch-create
+ * [POS]: components/projects 的批量入口，被 /batch-create 挂载
+ * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+ */
+
 "use client";
 
 import { useState } from "react";
@@ -5,8 +12,8 @@ import { AlertCircle, CheckCircle2, Images, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
+import { ImageDropzone } from "@/components/shared/image-dropzone";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { fileToBase64Payload } from "@/lib/utils/base64-upload";
 
 type BatchStatus = {
@@ -169,20 +176,17 @@ export function BatchCreateWorkspace() {
               </div>
             </div>
 
-            <Input
+            <ImageDropzone
               id="batch-create-files"
-              type="file"
-              accept="image/*"
               multiple
-              onChange={(event) => setBatchFiles(Array.from(event.target.files ?? []))}
-              className="hidden"
-            />
-            <label
-              htmlFor="batch-create-files"
+              disabled={batchSubmitting}
+              captureDocumentDrop
+              aria-label="批量上传产品图"
               className="flex min-h-[360px] cursor-pointer flex-col items-center justify-center rounded-[1.5rem] border border-dashed border-slate-300 bg-white/50 p-6 text-center transition hover:bg-slate-50/80 dark:border-white/10 dark:bg-white/[0.03] dark:hover:bg-white/[0.04]"
+              onFiles={setBatchFiles}
             >
               <Images className="h-11 w-11 text-slate-400" />
-              <p className="mt-5 text-lg font-medium text-slate-900 dark:text-white">选择多个产品图</p>
+              <p className="mt-5 text-lg font-medium text-slate-900 dark:text-white">点击或拖拽选择多个产品图</p>
               <p className="mt-2 max-w-md text-sm leading-7 text-slate-400 dark:text-slate-500">
                 支持 JPG、PNG、WEBP。建议每张图片都是清晰主商品图，系统会按文件逐个处理。
               </p>
@@ -191,7 +195,7 @@ export function BatchCreateWorkspace() {
                   已选择 {batchFiles.length} 张图片
                 </p>
               ) : null}
-            </label>
+            </ImageDropzone>
 
             <label className="flex items-start gap-3 rounded-2xl border border-slate-200 bg-white/70 p-4 text-sm text-slate-600 dark:border-white/10 dark:bg-black/20 dark:text-slate-300">
               <input

@@ -1,12 +1,19 @@
-﻿"use client";
+﻿/**
+ * [INPUT]: 依赖 ImageDropzone、fileToBase64Payload、Button
+ * [OUTPUT]: 对外提供 QuickStartWorkspace。首页单张主图：点击或拖放后创建项目、上传 MAIN、触发分析
+ * [POS]: components/projects 的首页入口，被 app/(app)/page.tsx 挂载
+ * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+ */
+
+"use client";
 
 import { useEffect, useMemo, useState } from "react";
 import { Loader2, UploadCloud } from "lucide-react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 
+import { ImageDropzone } from "@/components/shared/image-dropzone";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { fileToBase64Payload } from "@/lib/utils/base64-upload";
 
 function buildDraftProjectName() {
@@ -126,17 +133,14 @@ export function QuickStartWorkspace() {
 
       <div className="flex min-h-0 flex-1 rounded-[2rem] border border-slate-200 bg-white/84 p-6 shadow-soft backdrop-blur-xl dark:border-white/10 dark:bg-white/6 md:p-10">
         <div className="flex min-h-0 flex-1 flex-col rounded-[1.75rem] border border-dashed border-slate-300 bg-white/50 p-6 dark:border-white/10 dark:bg-white/[0.03] md:p-12">
-          <Input
+          <ImageDropzone
             id="quick-start-file"
-            type="file"
-            accept="image/*"
-            onChange={(event) => setFile(event.target.files?.[0] ?? null)}
-            className="hidden"
-          />
-
-          <label
-            htmlFor="quick-start-file"
+            disabled={submitting}
+            captureDocumentDrop
+            aria-label="上传产品图片"
             className="flex min-h-[420px] flex-1 cursor-pointer flex-col items-center justify-center rounded-[1.5rem] transition hover:bg-slate-50/80 dark:hover:bg-white/[0.04]"
+            activeClassName="bg-slate-50/80 ring-2 ring-slate-900/10 dark:bg-white/[0.06] dark:ring-white/20"
+            onFiles={(files) => setFile(files[0] ?? null)}
           >
             {previewUrl ? (
               <div className="flex flex-col items-center justify-center">
@@ -156,7 +160,7 @@ export function QuickStartWorkspace() {
                     <>
                       <p className="text-sm font-medium text-slate-700 dark:text-slate-200">已选择产品图</p>
                       <p className="max-w-md truncate text-sm text-slate-400 dark:text-slate-500">{file?.name}</p>
-                      <p className="text-sm text-slate-400 dark:text-slate-500">点击图片可重新选择</p>
+                      <p className="text-sm text-slate-400 dark:text-slate-500">点击或拖入图片可重新选择</p>
                     </>
                   )}
                 </div>
@@ -166,13 +170,13 @@ export function QuickStartWorkspace() {
                 <div className="flex h-20 w-20 items-center justify-center rounded-[1.75rem] border border-slate-200 bg-white text-slate-900 shadow-sm dark:border-white/10 dark:bg-black/30 dark:text-white">
                   <UploadCloud className="h-8 w-8" />
                 </div>
-                <p className="mt-6 text-lg font-medium text-slate-900 dark:text-white">点击上传产品图片</p>
+                <p className="mt-6 text-lg font-medium text-slate-900 dark:text-white">点击或拖拽上传产品图片</p>
                 <p className="mt-2 text-sm leading-7 text-slate-400 dark:text-slate-500">
                   支持 JPG、PNG、WEBP，建议使用清晰的白底主图
                 </p>
               </div>
             )}
-          </label>
+          </ImageDropzone>
 
           <div className="mt-6 flex justify-center">
             <Button onClick={handleStart} disabled={submitting || !file} className="min-w-[220px] rounded-full px-8">

@@ -1,3 +1,10 @@
+/**
+ * [INPUT]: 依赖 ImageDropzone、fileToBase64Payload、react-hook-form、projectCreateSchema
+ * [OUTPUT]: 对外提供 ProjectCreator。按 MAIN/ANGLE/DETAIL/REFERENCE 分桶，点击或拖放后创建并上传
+ * [POS]: components/projects 的高级新建页，被 /projects/new 挂载
+ * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+ */
+
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
@@ -8,6 +15,7 @@ import { toast } from "sonner";
 import { Loader2, Trash2, UploadCloud } from "lucide-react";
 import { z } from "zod";
 
+import { ImageDropzone } from "@/components/shared/image-dropzone";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -133,11 +141,6 @@ export function ProjectCreator() {
     }));
   };
 
-  const handleFileChange = (type: UploadBucketKey, fileList: FileList | null, multiple: boolean) => {
-    const files = fileList ? Array.from(fileList) : [];
-    updateBucket(type, multiple ? files : files.slice(0, 1));
-  };
-
   const removeQueuedFile = (type: UploadBucketKey, index: number) => {
     updateBucket(
       type,
@@ -230,7 +233,14 @@ export function ProjectCreator() {
 
         <div className="grid gap-4 md:grid-cols-2">
           {assetGroups.map((group) => (
-            <div key={group.type} className="space-y-3 rounded-3xl border border-dashed border-border p-4">
+            <ImageDropzone
+              key={group.type}
+              multiple={group.multiple}
+              disabled={submitting}
+              aria-label={`上传${group.label}`}
+              className="space-y-3 rounded-3xl border border-dashed border-border p-4"
+              onFiles={(files) => updateBucket(group.type, files)}
+            >
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
                   <Label>{group.label}</Label>
@@ -239,21 +249,15 @@ export function ProjectCreator() {
                   </span>
                 </div>
                 <p className="text-xs text-muted-foreground">{group.hint}</p>
+                <p className="text-xs text-muted-foreground">点击卡片或拖入图片上传</p>
               </div>
-
-              <Input
-                type="file"
-                multiple={group.multiple}
-                accept="image/*"
-                onChange={(event) => handleFileChange(group.type, event.target.files, group.multiple)}
-              />
 
               <PreviewGrid
                 type={group.type}
                 files={uploads[group.type]}
                 onRemove={(index) => removeQueuedFile(group.type, index)}
               />
-            </div>
+            </ImageDropzone>
           ))}
         </div>
 
