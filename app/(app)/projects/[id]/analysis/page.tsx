@@ -6,6 +6,9 @@ import { ProjectOutputConfigCard } from "@/components/shared/project-output-conf
 import { getSessionUser } from "@/lib/auth/session";
 import { getProjectDetail } from "@/lib/services/project-service";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export default async function ProjectAnalysisPage({
   params,
   searchParams,
@@ -38,6 +41,7 @@ export default async function ProjectAnalysisPage({
       />
       <ProjectOutputConfigCard project={project} editable />
       <AnalysisWorkspace
+        key={project.id}
         project={project}
         autoRunOnLoad={shouldAutoRun}
         source={searchParams?.source}

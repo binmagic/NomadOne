@@ -5,6 +5,9 @@ import { PageHeader } from "@/components/shared/page-header";
 import { getSessionUser } from "@/lib/auth/session";
 import { getProjectDetail } from "@/lib/services/project-service";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export default async function ProjectPlannerPage({ params }: { params: { id: string } }) {
   const user = await getSessionUser();
   if (!user) redirect("/login");
@@ -18,7 +21,7 @@ export default async function ProjectPlannerPage({ params }: { params: { id: str
         title={`${project.name} 的详情页规划`}
         description="将商品分析结果拆成头图规划、详情页规划和页面壳层说明，按最终产出结构完成编辑、排序和批量生成。"
       />
-      <PlannerWorkspace project={project} />
+      <PlannerWorkspace key={project.id} project={project} />
     </div>
   );
 }

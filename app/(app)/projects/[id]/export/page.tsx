@@ -6,6 +6,9 @@ import { ProjectOutputConfigCard } from "@/components/shared/project-output-conf
 import { getSessionUser } from "@/lib/auth/session";
 import { getProjectDetail } from "@/lib/services/project-service";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export default async function ProjectExportPage({ params }: { params: { id: string } }) {
   const user = await getSessionUser();
   if (!user) redirect("/login");

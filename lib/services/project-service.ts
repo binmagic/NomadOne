@@ -1,7 +1,7 @@
 /**
  * [INPUT]: 依赖 prisma、asset-manager、preview-config、mergeProjectSnapshot
  * [OUTPUT]: 对外提供项目 CRUD、所有权断言；updateProject 合并快照后再按 previewConfig 裁切多余模块
- * [POS]: lib/services 的项目内核，JSON 快照的服务端合并闸门
+ * [POS]: lib/services 的项目内核，JSON 快照的服务端合并闸门；裁切模块只发生在输出张数变化时
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 import fs from "fs/promises";
@@ -207,6 +207,7 @@ export async function updateProject(projectId: string, userId: string, input: Re
     return null;
   }
 
+  const previousPreview = readPreviewConfig(owned.modelSnapshot);
   const data = { ...input };
   if (input.modelSnapshot && typeof input.modelSnapshot === "object" && !Array.isArray(input.modelSnapshot)) {
     data.modelSnapshot = mergeProjectSnapshot(
@@ -221,7 +222,13 @@ export async function updateProject(projectId: string, userId: string, input: Re
   });
 
   if ("modelSnapshot" in data) {
-    await pruneProjectToPreviewConfig(projectId, data.modelSnapshot);
+    const nextPreview = readPreviewConfig(data.modelSnapshot);
+    if (
+      previousPreview.heroImageCount !== nextPreview.heroImageCount ||
+      previousPreview.detailSectionCount !== nextPreview.detailSectionCount
+    ) {
+      await pruneProjectToPreviewConfig(projectId, data.modelSnapshot);
+    }
   }
 
   return getProjectDetail(projectId, userId);

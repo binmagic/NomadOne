@@ -8,7 +8,7 @@
  */
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import {
   ArrowDown,
   ArrowUp,
@@ -146,6 +146,16 @@ export function PlannerWorkspace({ project }: PlannerWorkspaceProps) {
     stage: "idle",
     detail: "",
   });
+
+  const plannedSectionSignature = (project.sections ?? []).map((section: { id: string }) => section.id).join(",");
+
+  useEffect(() => {
+    setProjectState(project);
+    setSections(project.sections ?? []);
+    setPreviewConfig(getPreviewConfig(project));
+    setGenerationSettings(getGenerationSettings(project));
+    setVisualStyleGuide(getVisualStyleGuide(project));
+  }, [plannedSectionSignature, project.id]);
 
   const heroSections = useMemo(
     () => sections.filter((section: any) => section.type === "HERO"),
@@ -288,6 +298,7 @@ export function PlannerWorkspace({ project }: PlannerWorkspaceProps) {
         setVisualStyleGuide(normalizeVisualStyleGuide(payload.data.visualStyleGuide, visualStyleGuide));
       }
       await refreshProject();
+      router.refresh();
 
       toast.success(
         payload.data?.fallbackMode === "template_plan"

@@ -8,6 +8,9 @@ import { Button } from "@/components/ui/button";
 import { getSessionUser } from "@/lib/auth/session";
 import { getProjectDetail } from "@/lib/services/project-service";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export default async function ProjectEditorPage({ params }: { params: { id: string } }) {
   const user = await getSessionUser();
   if (!user) redirect("/login");
@@ -32,7 +35,7 @@ export default async function ProjectEditorPage({ params }: { params: { id: stri
         }
       />
       <ProjectOutputConfigCard project={project} />
-      <EditorWorkspace project={project} />
+      <EditorWorkspace key={project.id} project={project} />
     </div>
   );
 }
