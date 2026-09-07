@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 zod、types/domain 的套图槽位/平台/比例、content-language
- * [OUTPUT]: 对外提供 listingSetGenerateSchema、listingSetCopyAssistSchema
+ * [OUTPUT]: 对外提供 listingSetGenerateSchema、listingSetCopyAssistSchema；可带 referenceImages 与 preserveHeroTypographyFromReference
  * [POS]: lib/validations 的商品套图入参闸门，被 app/api/listing-set/* 消费
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -45,8 +45,17 @@ export const listingSetGenerateSchema = z
     groupCounts: groupCountSchema,
     analyzeViralStyle: z.boolean().default(false),
     generateListingCopy: z.boolean().default(true),
+    preserveHeroTypographyFromReference: z.boolean().default(false),
+    referenceImages: z.array(imagePayloadSchema).max(2, "参考图最多 2 张").optional().default([]),
   })
   .superRefine((value, ctx) => {
+    if (value.preserveHeroTypographyFromReference && !(value.referenceImages?.length ?? 0)) {
+      ctx.addIssue({
+        code: "custom",
+        message: "锁定第一张主图标题字体时，请上传至少 1 张参考图",
+        path: ["referenceImages"],
+      });
+    }
     if (value.structureMode !== "custom") return;
     const counts = value.groupCounts ?? { white: 1, scene: 2, selling: 2, other: 2 };
     const total = listingSetGroupKeys.reduce((sum, key) => sum + (counts[key] ?? 0), 0);

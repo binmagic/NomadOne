@@ -1,7 +1,7 @@
 /**
  * [INPUT]: 依赖 visual-prompt schema、ProviderAdapter、content-language、visual-style-guide
  * [OUTPUT]: 对外提供 buildVisualPromptWithAgent，把模块任务扩成生图用长 prompt
- * [POS]: lib/services 的出图前扩写层。图内字跟 title/copy，不跟旧 visualPrompt 里的口号
+ * [POS]: lib/services 的出图前扩写层。默认图内字跟 title/copy；锁参考图标题字体时禁止改字
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 import type { ProductAsset } from "@prisma/client";
@@ -40,6 +40,7 @@ type BuildVisualPromptInput = {
   referenceAssets?: Array<Pick<ProductAsset, "fileName" | "type" | "isMain">>;
   productContext?: unknown;
   visualStyleGuide?: VisualStyleGuide;
+  lockTypographyFromReference?: boolean;
   projectId?: string;
   sectionId?: string;
   operation: string;
@@ -111,8 +112,12 @@ function buildAgentPrompt(input: BuildVisualPromptInput) {
     "",
     "Important constraints:",
     "- Preserve the product/object identity from reference images. The main product image is the factual source of truth for category, geometry, count of parts, colors, labels, openings, mechanisms, proportions and material. Do not invent a different product.",
-    "- In-image headline, selling points, supporting copy and CTA must match title and copy. If basePrompt uses different slogans, discard those words and follow title/copy.",
-    "- All visible text must be clear, correctly spelled, and in the target content language.",
+    input.lockTypographyFromReference
+      ? "- TYPOGRAPHY LOCK: the first reference image is a finished poster. Transplant every visible title, subtitle, badge, CTA and disclaimer character-for-character. Keep typeface, weight, size, color, tracking, outline, shadow and placement. Do not follow title/copy for overlay words. Only swap the product."
+      : "- In-image headline, selling points, supporting copy and CTA must match title and copy. If basePrompt uses different slogans, discard those words and follow title/copy.",
+    input.lockTypographyFromReference
+      ? "- Do not translate or restyle locked overlay text, even if the target content language differs."
+      : "- All visible text must be clear, correctly spelled, and in the target content language.",
     "- Do not create category mistakes or impossible mechanics: no reversed airflow, cables entering furniture, floating unsupported objects, liquid flowing upward, broken shadows, impossible reflections, wrong hinges/openings, wrong cube layer count, wrong tile grid, wrong corner/edge/center structure, or hands passing through objects.",
     "- Avoid vague words alone. Make every visual choice concrete.",
     "- For e-commerce sections, hero images and detail images must look like one cohesive commercial page: consistent color palette, background system, lighting direction, shadow softness, typography, CTA style, icon/badge language, spacing, and product rendering.",
@@ -128,6 +133,7 @@ function buildAgentPrompt(input: BuildVisualPromptInput) {
         basePrompt: input.basePrompt,
         aspectRatio: input.aspectRatio,
         contentLanguage: input.contentLanguage ?? "zh-CN",
+        lockTypographyFromReference: input.lockTypographyFromReference === true,
         references: summarizeReferences(input),
         productContext: input.productContext ?? null,
         visualStyleGuide: input.visualStyleGuide ? visualStyleGuideToPrompt(input.visualStyleGuide) : null,
@@ -167,7 +173,9 @@ function buildFallbackPrompt(input: BuildVisualPromptInput) {
     referenceInstruction,
     input.visualStyleGuide ? `Project-level visual style guide that must be preserved across the whole project:\n${visualStyleGuideToPrompt(input.visualStyleGuide)}` : "No project-level visual style guide is available; create a clean reusable visual system and keep this image compatible with it.",
     "Create a concrete composition: define foreground subject placement, middle-ground information blocks, background scene, camera angle, crop, props, lighting direction, shadows, reflections, material texture, color palette, and depth.",
-    "Typography must be designed inside the image with clear hierarchy: large readable title, short supporting copy, 2-4 concise labels or selling points, and optional CTA/badge placed away from product edges.",
+    input.lockTypographyFromReference
+      ? "Overlay typography is locked to the first reference poster. Copy every visible word and font exactly. Do not invent new headlines from title/copy."
+      : "Typography must be designed inside the image with clear hierarchy: large readable title, short supporting copy, 2-4 concise labels or selling points, and optional CTA/badge placed away from product edges.",
     "Respect real-world physics and product mechanics: correct airflow/light/liquid direction, visible cable exit points, realistic support surfaces, gravity, contact shadows, aligned hinges/openings/drawers/buttons/handles.",
     "Negative constraints: no garbled text, no over-crowded typography, no distorted product geometry, no floating unsupported product, no cables merging into tables or walls, no reversed airflow, no impossible reflections, no hands passing through solid parts.",
     "Final output should be a polished, commercially usable image with crisp details and no explanatory UI chrome.",

@@ -126,7 +126,7 @@ export function ProjectCreator() {
         {
           type: "REFERENCE" as const,
           label: assetTypeLabels.REFERENCE,
-          hint: "选填。用于约束风格或构图，不会自动替代主商品信息。",
+          hint: "选填。带标题的竞品主图可锁到第一张头图的标题和字体；不会替代主商品信息。",
           multiple: true,
           required: false,
         },

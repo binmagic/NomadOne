@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 /api/listing-set/*、/api/tasks、ListingSetForm/Canvas、fileToBase64Payload
- * [OUTPUT]: 对外提供 ListingSetWorkspace；提交后入队并轮询，直到套图与文案写回
+ * [OUTPUT]: 对外提供 ListingSetWorkspace；提交后入队并轮询，直到套图与文案写回；可带参考图锁定第一张主图标题字体
  * [POS]: components/listing-set 的工作台，被 app/(app)/listing-set/page.tsx 挂载
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -192,15 +192,23 @@ export function ListingSetWorkspace({ initialProjects }: { initialProjects: List
       toast.error("请先上传商品原图");
       return;
     }
+    if (form.preserveHeroTypographyFromReference && !form.referenceFiles.length) {
+      toast.error("锁定第一张主图标题字体时，请先上传参考图");
+      return;
+    }
     setSubmitting(true);
     setTask(null);
     try {
       const images = await Promise.all(form.files.map((file) => fileToBase64Payload(file)));
+      const referenceImages = form.preserveHeroTypographyFromReference
+        ? await Promise.all(form.referenceFiles.map((file) => fileToBase64Payload(file)))
+        : [];
       const result = await readApi<{ taskId: string; projectId: string }>("/api/listing-set/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           images,
+          referenceImages,
           platform: form.platform,
           market: form.market,
           contentLanguage: form.contentLanguage,
@@ -210,6 +218,7 @@ export function ListingSetWorkspace({ initialProjects }: { initialProjects: List
           groupCounts: form.groupCounts,
           analyzeViralStyle: form.analyzeViralStyle,
           generateListingCopy: form.generateListingCopy,
+          preserveHeroTypographyFromReference: form.preserveHeroTypographyFromReference,
         }),
       });
       setTaskId(result.taskId);

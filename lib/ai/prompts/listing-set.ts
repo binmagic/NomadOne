@@ -1,7 +1,7 @@
 /**
  * [INPUT]: 依赖 types/domain 的套图槽位目录、content-language 的语种名
  * [OUTPUT]: 对外提供套图规划/卖点扩写提示词，以及槽位视觉模板
- * [POS]: lib/ai/prompts 的 Listing 套图口径。主图禁止图内字；详情页生图提示词不得覆盖这条
+ * [POS]: lib/ai/prompts 的 Listing 套图口径。主图默认禁止图内字；锁定参考图标题字体时第一张例外
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
@@ -45,14 +45,21 @@ type ListingSetPromptContext = {
   slotKeys: ListingSetSlotKey[];
   analyzeViralStyle: boolean;
   generateListingCopy: boolean;
+  preserveHeroTypographyFromReference?: boolean;
 };
 
-function platformCompliance(platform: PlatformOption, market: ListingSetMarket) {
+function platformCompliance(
+  platform: PlatformOption,
+  market: ListingSetMarket,
+  preserveHeroTypographyFromReference = false,
+) {
   const marketLabel = listingSetMarketLabels[market];
   const platformLabel = platformLabels[platform];
   return [
     `Target marketplace: ${platformLabel}. Target market: ${marketLabel}.`,
-    "First image (hero_white) must pass typical main-image compliance: white/clean background, product fully visible, no promotional text, no watermarks, no QR codes, no platform UI.",
+    preserveHeroTypographyFromReference
+      ? "First image (hero_white) must keep the reference poster's titles, fonts, type size and placement unchanged, and only replace the product with the merchant's own item. Do not rewrite overlay text."
+      : "First image (hero_white) must pass typical main-image compliance: white/clean background, product fully visible, no promotional text, no watermarks, no QR codes, no platform UI.",
     "Do not invent medical, financial, ranking or 'guaranteed' claims.",
     "Do not add competitor brand names or fake certifications.",
     market === "cn"
@@ -72,7 +79,7 @@ export function buildListingSetPlanPrompt(input: ListingSetPromptContext) {
   return [
     "You are a senior marketplace listing art director. Return one strict JSON object only.",
     "Plan a product listing image set (carousel / 主图套图), NOT a long detail page.",
-    platformCompliance(input.platform, input.market),
+    platformCompliance(input.platform, input.market, input.preserveHeroTypographyFromReference === true),
     `User-facing copy inside images (where allowed) and listing copy must be in ${language}.`,
     input.sellingPoints.trim()
       ? `Merchant notes / selling points:\n${input.sellingPoints.trim()}`
@@ -83,13 +90,17 @@ export function buildListingSetPlanPrompt(input: ListingSetPromptContext) {
       : `Choose ${input.slotKeys.length} slots. Prefer this default order unless the product clearly needs a swap (for example fashion may keep two model frames and drop specs):\n${slotList}`,
     "slots[].slotKey must be one of the provided keys. Do not invent keys.",
     "visualPrompt must be 180-420 characters, bilingual if helpful, and lock product identity to the uploaded photos.",
-    "hero_white / scene / model / usage prompts must forbid overlay text.",
+    input.preserveHeroTypographyFromReference
+      ? "hero_white visualPrompt must lock overlay titles and fonts from the typography reference poster and only swap the product. scene / model / usage prompts must still forbid overlay text."
+      : "hero_white / scene / model / usage prompts must forbid overlay text.",
     "detail / selling / specs / comparison / material prompts should design short typography into the frame.",
     input.generateListingCopy
       ? "listingCopy must include a marketplace title, 3-6 short selling points, a 60-120 word description, and a few search keywords. No fake discounts."
       : "Still fill listingCopy with conservative factual copy inferred from the photos.",
     input.analyzeViralStyle
-      ? "viralStyle is required. Infer high-converting listing tropes for this category and marketplace from the photos: lighting, crop, color temperature, prop language, model energy, typography density on allowed slots. Apply those tropes inside every visualPrompt. hero_white must stay white-background and text-free even when tropes are applied. Do not copy a competitor brand."
+      ? input.preserveHeroTypographyFromReference
+        ? "viralStyle is required. Infer high-converting listing tropes for this category and marketplace from the photos. Apply those tropes inside every visualPrompt except hero_white, which must keep the reference poster's titles and fonts. Do not copy a competitor brand."
+        : "viralStyle is required. Infer high-converting listing tropes for this category and marketplace from the photos: lighting, crop, color temperature, prop language, model energy, typography density on allowed slots. Apply those tropes inside every visualPrompt. hero_white must stay white-background and text-free even when tropes are applied. Do not copy a competitor brand."
       : "viralStyle must be null. Do not chase a viral look; keep the set clean and product-true.",
     "JSON shape: { productName, slots: [{ slotKey, title, goal, copy, visualPrompt }], listingCopy: { productName, listingTitle, sellingPoints, description, keywords }, viralStyle: { summary, visualTropes, colorMood, avoid } | null }",
   ].join("\n");

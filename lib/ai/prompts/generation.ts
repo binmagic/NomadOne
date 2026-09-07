@@ -1,7 +1,7 @@
 /**
  * [INPUT]: 依赖 Prisma PageSection/ProductAsset、content-language
  * [OUTPUT]: 对外提供详情页生图/重绘/增强/翻译/SVG 布局提示词
- * [POS]: lib/ai/prompts 的出图口径。图内字以 title/copy 为准，visualPrompt 只负责构图
+ * [POS]: lib/ai/prompts 的出图口径。默认图内字以 title/copy 为准；第一张头图可锁参考图标题字体，此时 title/copy 让路
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 import type { PageSection, ProductAsset } from "@prisma/client";
@@ -69,12 +69,30 @@ function buildPhysicalRealityInstruction() {
   ].join(" ");
 }
 
+function buildTypographyLockInstruction() {
+  return [
+    "TYPOGRAPHY LOCK — highest priority, overrides section title, section copy, visual prompt wording, and target-language overlay rules.",
+    "The first attached reference image is a finished marketplace poster whose overlay text must be transplanted unchanged.",
+    "Copy every visible title, subtitle, selling-point line, badge, CTA, price, and disclaimer character-for-character, including misspellings if any.",
+    "Keep the exact typeface, weight, size, color, tracking, outline, shadow, alignment, rotation, and pixel placement of all text.",
+    "Do not translate, rewrite, restyle, resample, or move any letter. Do not replace overlay text with the section title or section copy.",
+    "Only replace the product/object in the scene with the main product photo. Background, layout grid, decorative shapes, color blocks, and lighting stay as in the typography reference.",
+  ].join(" ");
+}
+
+export type SectionImagePromptOptions = {
+  lockTypographyFromReference?: boolean;
+};
+
 export function buildSectionImagePrompt(
   section: PageSection,
   referenceAssets: ProductAsset[] = [],
   aspectRatio: "1:1" | "3:4" | "9:16" = "9:16",
   contentLanguage: ContentLanguage = "zh-CN",
+  options?: SectionImagePromptOptions,
 ) {
+  const lockTypography = options?.lockTypographyFromReference === true;
+
   return [
     "You are a senior e-commerce key-visual designer creating marketplace-ready product artwork.",
     `Section type: ${section.type}`,
@@ -82,19 +100,25 @@ export function buildSectionImagePrompt(
     `Section goal: ${section.goal}`,
     `Section copy: ${section.copy}`,
     `Visual prompt guidance: ${section.visualPrompt}`,
-    "In-image wording source of truth is the section title and section copy. If visual prompt guidance contains different headlines, selling points, or CTA words, discard those words and use title/copy.",
+    lockTypography
+      ? buildTypographyLockInstruction()
+      : "In-image wording source of truth is the section title and section copy. If visual prompt guidance contains different headlines, selling points, or CTA words, discard those words and use title/copy.",
     buildReferenceText(referenceAssets),
     buildMainImageInstruction(referenceAssets),
     buildAspectInstruction(aspectRatio),
-    buildTargetLanguageInstruction(contentLanguage),
+    lockTypography ? "" : buildTargetLanguageInstruction(contentLanguage),
     buildPhysicalRealityInstruction(),
     "Generate one high-conversion mobile e-commerce visual for this section.",
     "The image should emphasize product clarity, composition hierarchy, material texture, and marketplace aesthetics.",
-    readNoTextInImage(section)
-      ? "This frame is a marketplace-compliant photograph. Do not render any captions, headlines, badges, watermarks, promotional stickers, QR codes, platform UI, or extra logos. Product only, plus real environment if the section requires it."
-      : "The headline, selling points, supporting copy, and CTA should be visually designed inside the image rather than left for later DOM text insertion.",
+    lockTypography
+      ? "Overlay text is already locked from the reference poster. Do not add extra captions, watermarks, QR codes, or platform UI."
+      : readNoTextInImage(section)
+        ? "This frame is a marketplace-compliant photograph. Do not render any captions, headlines, badges, watermarks, promotional stickers, QR codes, platform UI, or extra logos. Product only, plus real environment if the section requires it."
+        : "The headline, selling points, supporting copy, and CTA should be visually designed inside the image rather than left for later DOM text insertion.",
     "Make the result feel like finished commercial artwork, not a blank template.",
-  ].join("\n");
+  ]
+    .filter(Boolean)
+    .join("\n");
 }
 
 export function buildRegenerationPrompt(
@@ -102,10 +126,13 @@ export function buildRegenerationPrompt(
   referenceAssets: ProductAsset[] = [],
   aspectRatio: "1:1" | "3:4" | "9:16" = "9:16",
   contentLanguage: ContentLanguage = "zh-CN",
+  options?: SectionImagePromptOptions,
 ) {
   return [
-    buildSectionImagePrompt(section, referenceAssets, aspectRatio, contentLanguage),
-    "This is a regeneration task. Keep the same product identity and selling-point direction, but improve composition accuracy, completion quality, and conversion appeal.",
+    buildSectionImagePrompt(section, referenceAssets, aspectRatio, contentLanguage, options),
+    options?.lockTypographyFromReference
+      ? "This is a regeneration task. Keep the locked overlay typography identical to the reference poster and only improve product identity, lighting, and commercial polish."
+      : "This is a regeneration task. Keep the same product identity and selling-point direction, but improve composition accuracy, completion quality, and conversion appeal.",
   ].join("\n");
 }
 

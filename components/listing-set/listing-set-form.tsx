@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 domain 套图目录、content-language、ImageDropzone、Button/Textarea
- * [OUTPUT]: 对外提供 ListingSetForm，收集原图/平台/卖点/槽位后提交
+ * [OUTPUT]: 对外提供 ListingSetForm，收集原图/参考图/平台/卖点/槽位/第一张主图锁字后提交
  * [POS]: components/listing-set 的左栏表单，被 ListingSetWorkspace 挂载
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -41,6 +41,7 @@ const selectClass =
 
 export type ListingSetFormValues = {
   files: File[];
+  referenceFiles: File[];
   platform: PlatformOption;
   market: ListingSetMarket;
   contentLanguage: (typeof contentLanguageOptions)[number];
@@ -51,10 +52,12 @@ export type ListingSetFormValues = {
   analyzeViralStyle: boolean;
   viralStyle: ListingSetViralStyle | null;
   generateListingCopy: boolean;
+  preserveHeroTypographyFromReference: boolean;
 };
 
 export const emptyListingSetForm = (): ListingSetFormValues => ({
   files: [],
+  referenceFiles: [],
   platform: "douyin_ecommerce",
   market: "cn",
   contentLanguage: "zh-CN",
@@ -65,6 +68,7 @@ export const emptyListingSetForm = (): ListingSetFormValues => ({
   analyzeViralStyle: false,
   viralStyle: null,
   generateListingCopy: true,
+  preserveHeroTypographyFromReference: false,
 });
 
 export function countListingSetSlots(values: ListingSetFormValues) {
@@ -431,6 +435,56 @@ export function ListingSetForm(props: {
               disabled={disabled}
               onChange={(checked) => onChange({ ...values, generateListingCopy: checked })}
             />
+            <div className="rounded-[1.35rem] bg-slate-100 px-4 py-3.5 dark:bg-white/[0.06]">
+              <button
+                type="button"
+                role="switch"
+                aria-checked={values.preserveHeroTypographyFromReference}
+                disabled={disabled}
+                onClick={() =>
+                  onChange({
+                    ...values,
+                    preserveHeroTypographyFromReference: !values.preserveHeroTypographyFromReference,
+                  })
+                }
+                className="flex w-full items-center justify-between gap-3 text-left disabled:opacity-50"
+              >
+                <span className="text-sm font-medium text-slate-900 dark:text-white">第一张主图锁定参考图标题和字体</span>
+                <SwitchKnob checked={values.preserveHeroTypographyFromReference} />
+              </button>
+              {values.preserveHeroTypographyFromReference ? (
+                <div className="mt-3 space-y-2">
+                  <p className="text-xs leading-5 text-slate-500">
+                    上传一张带标题的参考主图。生成时第一张会原样沿用它的标题、字体和位置，只替换成你的商品。淘宝/天猫/拼多多主图通常不允许促销字。
+                  </p>
+                  <ImageDropzone
+                    disabled={disabled}
+                    aria-label="上传参考主图"
+                    className="flex cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed border-slate-300 bg-white px-3 py-5 text-center text-xs text-slate-500 dark:border-white/15 dark:bg-zinc-800"
+                    onFiles={(files) => onChange({ ...values, referenceFiles: files.slice(0, 2) })}
+                  >
+                    <UploadCloud className="h-4 w-4" />
+                    <span className="mt-2">点击或拖拽上传参考主图</span>
+                  </ImageDropzone>
+                  {values.referenceFiles.length ? (
+                    <div className="grid grid-cols-3 gap-2">
+                      {values.referenceFiles.map((file, index) => (
+                        <FileThumb
+                          key={`${file.name}-${file.lastModified}-${index}`}
+                          file={file}
+                          onRemove={() =>
+                            onChange({
+                              ...values,
+                              referenceFiles: values.referenceFiles.filter((_, item) => item !== index),
+                            })
+                          }
+                        />
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
+            </div>
           </div>
         </section>
       </div>
