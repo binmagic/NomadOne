@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 无运行时依赖，只导出领域常量和公开类型
- * [OUTPUT]: 对外提供平台/风格/能力/角色标签，以及 Studio 对话生图、商品套图的视图类型
+ * [OUTPUT]: 对外提供平台/风格/能力/角色标签，以及 Studio 对话生图、商品套图、实拍换品的视图类型
  * [POS]: types/ 的唯一公开契约，被页面、校验和服务同时消费
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -402,6 +402,38 @@ export interface ListingSetView {
   slots: ListingSetSlotView[];
   latestTaskId: string | null;
   latestTaskStatus: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ProductSwapImageView {
+  id: string;
+  url: string;
+  fileName: string;
+}
+
+export interface ProductSwapProjectSummary {
+  id: string;
+  name: string;
+  updatedAt: string;
+  coverImageUrl: string | null;
+  status: string;
+  latestTaskId: string | null;
+  latestTaskStatus: string | null;
+}
+
+export interface ProductSwapView {
+  id: string;
+  name: string;
+  status: string;
+  aspectRatio: StudioAspectRatio;
+  notes: string;
+  sceneImage: ProductSwapImageView | null;
+  productImage: ProductSwapImageView | null;
+  resultImageUrl: string | null;
+  latestTaskId: string | null;
+  latestTaskStatus: string | null;
+  errorMessage: string | null;
   createdAt: string;
   updatedAt: string;
 }

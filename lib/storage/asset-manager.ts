@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 Prisma ProductAsset、STORAGE_ROOT、nanoid 与 files 工具
- * [OUTPUT]: 对外提供商品素材落盘/读取，以及对话生图 studio/{userId}/{conversationId} 文件
+ * [OUTPUT]: 对外提供商品素材落盘/读取，以及对话生图 studio/{userId}/{conversationId} 文件；saveGeneratedImage 的 sectionId 可空
  * [POS]: lib/storage 的唯一落盘入口。商品图走 ProductAsset；Studio 只写磁盘，路径记在 StudioMessage
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -71,7 +71,7 @@ export async function saveUploadAsset(params: {
 
 export async function saveGeneratedImage(params: {
   projectId: string;
-  sectionId: string;
+  sectionId?: string;
   prompt: string;
   source: {
     url?: string | null;
@@ -89,7 +89,9 @@ export async function saveGeneratedImage(params: {
     params.source.svgText ? "image/svg+xml" : params.source.mimeType ?? "image/png";
   const ext = extFromMime(mimeType);
   const fileName = `${Date.now()}-${nanoid(6)}.${ext}`;
-  const relativePath = path.join("generated", params.projectId, params.sectionId, fileName);
+  const relativePath = params.sectionId
+    ? path.join("generated", params.projectId, params.sectionId, fileName)
+    : path.join("generated", params.projectId, fileName);
   const absolutePath = path.join(rootDir(), relativePath);
 
   if (params.source.svgText) {
@@ -110,7 +112,7 @@ export async function saveGeneratedImage(params: {
   return prisma.productAsset.create({
     data: {
       projectId: params.projectId,
-      sectionId: params.sectionId,
+      sectionId: params.sectionId ?? null,
       type: "GENERATED",
       filePath: relativePath,
       fileName,

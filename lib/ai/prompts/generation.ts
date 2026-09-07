@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 Prisma PageSection/ProductAsset、content-language
- * [OUTPUT]: 对外提供详情页生图/重绘/增强/翻译/SVG 布局提示词
+ * [OUTPUT]: 对外提供详情页生图/重绘/增强/翻译/SVG 布局提示词，以及 buildPhysicalRealityInstruction
  * [POS]: lib/ai/prompts 的出图口径。默认图内字以 title/copy 为准；第一张头图可锁参考图标题字体，此时 title/copy 让路
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -59,7 +59,7 @@ function buildTargetLanguageInstruction(contentLanguage: ContentLanguage) {
   ].join(" ");
 }
 
-function buildPhysicalRealityInstruction() {
+export function buildPhysicalRealityInstruction() {
   return [
     "Respect product physics and product-specific mechanical logic.",
     "Infer how the product actually works from the uploaded image and section goal: cable exit points, vents, nozzles, hinges, openings, drawers, buttons, handles, gravity, shadows, reflections, support surfaces, airflow, liquid flow, and user interaction direction.",

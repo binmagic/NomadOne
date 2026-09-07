@@ -1,7 +1,7 @@
 /**
  * [INPUT]: 依赖 cn、sonner
  * [OUTPUT]: 对外提供 ImageDropzone 与 pickImageFiles。点击与拖放都产出 File[]，不编码、不上传
- * [POS]: components/shared 的图片拾取器。被 quick-start / batch-create / listing-set-form / project-creator 消费
+ * [POS]: components/shared 的图片拾取器。被 quick-start / batch-create / listing-set-form / product-swap-form / project-creator 消费
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 

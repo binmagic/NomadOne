@@ -56,12 +56,14 @@ enum TaskType {
   TRANSLATE_PAGE
   XHS_GENERATE
   LISTING_SET_GENERATE
+  PRODUCT_SWAP_GENERATE
   QA_CHECK
 }
 
 enum ProjectKind {
   DETAIL_PAGE
   LISTING_SET
+  PRODUCT_SWAP
 }
 
 enum TaskStatus {
