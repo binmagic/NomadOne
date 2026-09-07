@@ -1,3 +1,9 @@
+/**
+ * [INPUT]: 依赖 Prisma PageSection/ProductAsset、prompts 生图口径、visual-prompt-agent、generation-settings
+ * [OUTPUT]: 对外提供 generateSectionImage / regenerateSectionImage / editSectionImage
+ * [POS]: lib/services 的详情页出图内核。第一张 HERO 可把 REFERENCE 放到参考图首位并锁标题字体
+ * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+ */
 import { z } from "zod";
 import type { PageSection, ProductAsset } from "@prisma/client";
 
@@ -14,6 +20,7 @@ import { completeTask, createTask, failTask, findRecentRunningTask } from "@/lib
 import { buildVisualPromptWithAgent } from "@/lib/services/visual-prompt-agent";
 import { readStorageFile, saveGeneratedImage } from "@/lib/storage/asset-manager";
 import { normalizeContentLanguage, type ContentLanguage } from "@/lib/utils/content-language";
+import { readGenerationSettings } from "@/lib/utils/generation-settings";
 import { buildDefaultVisualStyleGuide, readVisualStyleGuide } from "@/lib/utils/visual-style-guide";
 import { sectionTypeLabels } from "@/types/domain";
 
@@ -64,16 +71,17 @@ type SectionImageAspectRatio = "1:1" | "3:4" | "9:16";
 
 function getGenerationSettings(project: { modelSnapshot: unknown } | null) {
   const snapshot = (project?.modelSnapshot as Record<string, unknown> | null) ?? {};
-  const settings = (snapshot.generationSettings as Record<string, unknown> | null) ?? {};
+  const settings = readGenerationSettings(snapshot);
   const previewConfig = (snapshot.previewConfig as Record<string, unknown> | null) ?? {};
 
   const ratio = previewConfig.imageAspectRatio;
   const imageAspectRatio: SectionImageAspectRatio = ratio === "3:4" || ratio === "1:1" ? ratio : "9:16";
 
   return {
-    allowSvgFallback: settings.allowSvgFallback === true,
+    allowSvgFallback: settings.allowSvgFallback,
+    uniformAspectRatio: settings.uniformAspectRatio,
+    preserveHeroTypographyFromReference: settings.preserveHeroTypographyFromReference,
     imageAspectRatio,
-    uniformAspectRatio: settings.uniformAspectRatio === true,
     contentLanguage: normalizeContentLanguage(previewConfig.contentLanguage),
   };
 }
@@ -319,6 +327,38 @@ function mergeReferenceAssets(projectAssets: AssetRecord[], explicitReferenceAss
   const merged = [primaryAsset, ...explicitReferenceAssets].filter(Boolean) as AssetRecord[];
 
   return merged.filter((asset, index, list) => list.findIndex((entry) => entry.id === asset.id) === index);
+}
+
+function pickTypographyReferenceAsset(projectAssets: AssetRecord[], explicitReferenceAssets: AssetRecord[]) {
+  const explicitReference = explicitReferenceAssets.find((asset) => asset.type === "REFERENCE");
+  if (explicitReference) {
+    return explicitReference;
+  }
+
+  return projectAssets.find((asset) => asset.type === "REFERENCE") ?? null;
+}
+
+function mergeReferenceAssetsForTypographyLock(
+  projectAssets: AssetRecord[],
+  explicitReferenceAssets: AssetRecord[],
+  typographyReference: AssetRecord,
+) {
+  const merged = mergeReferenceAssets(projectAssets, explicitReferenceAssets);
+  return [typographyReference, ...merged.filter((asset) => asset.id !== typographyReference.id)];
+}
+
+async function isFirstHeroSection(projectId: string, section: Pick<PageSection, "id" | "type">) {
+  if (section.type !== "HERO") {
+    return false;
+  }
+
+  const firstHero = await prisma.pageSection.findFirst({
+    where: { projectId, type: "HERO" },
+    orderBy: { order: "asc" },
+    select: { id: true },
+  });
+
+  return firstHero?.id === section.id;
 }
 
 async function resolveReferenceAssets(referenceAssetIds: string[]) {
@@ -649,7 +689,21 @@ async function generateSectionImageInternal(
   const modelCandidates = buildImageModelCandidates(provider, options);
   const selectedModel = modelCandidates[0] ?? null;
   const explicitReferenceAssets = await resolveReferenceAssets(options?.referenceAssetIds ?? []);
-  const effectiveReferenceAssets = mergeReferenceAssets(project.assets as AssetRecord[], explicitReferenceAssets as AssetRecord[]);
+  const typographyReference = pickTypographyReferenceAsset(
+    project.assets as AssetRecord[],
+    explicitReferenceAssets as AssetRecord[],
+  );
+  const lockTypographyFromReference =
+    generationSettings.preserveHeroTypographyFromReference &&
+    Boolean(typographyReference) &&
+    (await isFirstHeroSection(projectId, section));
+  const effectiveReferenceAssets = lockTypographyFromReference && typographyReference
+    ? mergeReferenceAssetsForTypographyLock(
+        project.assets as AssetRecord[],
+        explicitReferenceAssets as AssetRecord[],
+        typographyReference,
+      )
+    : mergeReferenceAssets(project.assets as AssetRecord[], explicitReferenceAssets as AssetRecord[]);
   const referenceImages = await Promise.all(effectiveReferenceAssets.map((asset) => assetToDataUrl(asset)));
   const runningTask = await findRecentRunningTask({
     projectId,
@@ -671,6 +725,8 @@ async function generateSectionImageInternal(
       referenceAssetIds: options?.referenceAssetIds ?? [],
       effectiveReferenceAssetIds: effectiveReferenceAssets.map((asset) => asset.id),
       allowSvgFallback: generationSettings.allowSvgFallback,
+      lockTypographyFromReference,
+      typographyReferenceAssetId: typographyReference?.id ?? null,
     },
   });
 
@@ -680,18 +736,21 @@ async function generateSectionImageInternal(
   });
 
   try {
+    const promptOptions = { lockTypographyFromReference };
     const basePrompt = options?.regenerate
       ? buildRegenerationPrompt(
           section,
           effectiveReferenceAssets as ProductAsset[],
           sectionAspectRatio,
           generationSettings.contentLanguage,
+          promptOptions,
         )
       : buildSectionImagePrompt(
           section,
           effectiveReferenceAssets as ProductAsset[],
           sectionAspectRatio,
           generationSettings.contentLanguage,
+          promptOptions,
         );
     const prompt = await buildVisualPromptWithAgent({
       provider,
@@ -707,6 +766,7 @@ async function generateSectionImageInternal(
       referenceAssets: effectiveReferenceAssets as ProductAsset[],
       productContext: project.analysis?.normalizedResult ?? project.modelSnapshot ?? null,
       visualStyleGuide,
+      lockTypographyFromReference,
       projectId,
       sectionId,
       operation: options?.regenerate ? "visual_prompt_agent_regenerate_section" : "visual_prompt_agent_generate_section",
@@ -750,7 +810,7 @@ async function generateSectionImageInternal(
       usedModel = generation.model;
       generationMode = "image_api";
     } catch (error) {
-      if (!generationSettings.allowSvgFallback) {
+      if (!generationSettings.allowSvgFallback || lockTypographyFromReference) {
         const detail = error instanceof Error ? error.message : "Unknown image generation error";
         if (/monthly spending limit|spending limit|billing|quota/i.test(detail)) {
           throw new Error("当前 API Key 的图片生成额度已用尽。请前往代理商控制台提高或移除月度限额，或更换可用的 API Key。");
@@ -760,7 +820,9 @@ async function generateSectionImageInternal(
         }
         const summary = summarizeProviderImageFailure(detail, "generate");
         throw new Error(
-          `当前 Provider 没有可用的真实图片生成端点。请前往“模型服务配置”页更换支持图片生成的 Provider，或在规划页手动开启“允许 SVG 兜底预览”。原因摘要：${summary}`,
+          lockTypographyFromReference
+            ? `锁定参考图标题字体时不能走 SVG 兜底，必须用真实改图。请确认当前 Provider 支持参考图编辑。原因摘要：${summary}`
+            : `当前 Provider 没有可用的真实图片生成端点。请前往“模型服务配置”页更换支持图片生成的 Provider，或在规划页手动开启“允许 SVG 兜底预览”。原因摘要：${summary}`,
         );
       }
 

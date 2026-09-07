@@ -2,15 +2,16 @@
 
 /**
  * [INPUT]: 依赖项目详情、分析 PATCH/ANALYZE API、waitForProjectOutputConfigFlush
- * [OUTPUT]: 对外提供 AnalysisWorkspace；进入规划前先 flush 输出配置写入
+ * [OUTPUT]: 对外提供 AnalysisWorkspace；可补参考图并锁定第一张主图标题字体；进入规划前先 flush 输出配置写入
  * [POS]: components/analysis 的分析工作台，与 ProjectOutputConfigCard 兄弟挂载
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { ArrowDown, ArrowRight, ArrowUp, Loader2, Sparkles, Star, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowRight, ArrowUp, Loader2, Sparkles, Star, Trash2, UploadCloud } from "lucide-react";
 import { toast } from "sonner";
 
+import { ImageDropzone } from "@/components/shared/image-dropzone";
 import { NoticeCard } from "@/components/shared/notice-card";
 import { waitForProjectOutputConfigFlush } from "@/components/shared/project-output-config-card";
 import { Badge } from "@/components/ui/badge";
@@ -19,6 +20,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { fileToBase64Payload } from "@/lib/utils/base64-upload";
+import { readGenerationSettings } from "@/lib/utils/generation-settings";
 import { assetTypeLabels, platformLabels, platformOptions, styleLabels, styleOptions } from "@/types/domain";
 
 interface AnalysisWorkspaceProps {
@@ -74,6 +77,10 @@ export function AnalysisWorkspace({
   const [running, setRunning] = useState(false);
   const [saving, setSaving] = useState(false);
   const [savingProject, setSavingProject] = useState(false);
+  const [uploadingReference, setUploadingReference] = useState(false);
+  const [preserveHeroTypographyFromReference, setPreserveHeroTypographyFromReference] = useState(
+    () => readGenerationSettings(project.modelSnapshot).preserveHeroTypographyFromReference,
+  );
   const autoStartedRef = useRef(false);
   const analysisInFlightRef = useRef(false);
 
@@ -83,6 +90,9 @@ export function AnalysisWorkspace({
     if (payload.success) {
       setProjectState(payload.data);
       setAnalysis(withDefaultAdditionalInformation(payload.data.analysis?.normalizedResult ?? null));
+      setPreserveHeroTypographyFromReference(
+        readGenerationSettings(payload.data.modelSnapshot).preserveHeroTypographyFromReference,
+      );
     }
   };
 
@@ -222,6 +232,55 @@ export function AnalysisWorkspace({
     await refreshProject();
   };
 
+  const persistTypographyLock = async (checked: boolean) => {
+    setPreserveHeroTypographyFromReference(checked);
+    const response = await fetch(`/api/projects/${project.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        modelSnapshot: {
+          generationSettings: { preserveHeroTypographyFromReference: checked },
+        },
+      }),
+    });
+    const payload = await response.json();
+    if (!payload.success) {
+      setPreserveHeroTypographyFromReference(!checked);
+      toast.error(payload.error?.message ?? "锁定选项保存失败");
+      return;
+    }
+    if (payload.data) {
+      setProjectState(payload.data);
+    }
+  };
+
+  const uploadReferenceImage = async (files: File[]) => {
+    const file = files[0];
+    if (!file) return;
+    setUploadingReference(true);
+    try {
+      const base64Payload = await fileToBase64Payload(file);
+      const response = await fetch(`/api/projects/${project.id}/assets/upload`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: "REFERENCE",
+          ...base64Payload,
+        }),
+      });
+      const payload = await response.json();
+      if (!payload.success) {
+        throw new Error(payload.error?.message ?? "参考图上传失败");
+      }
+      toast.success("参考图已上传");
+      await refreshProject();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "参考图上传失败");
+    } finally {
+      setUploadingReference(false);
+    }
+  };
+
   const goToPlanner = async () => {
     setOpeningPlanner(true);
     try {
@@ -315,7 +374,7 @@ export function AnalysisWorkspace({
         <Card>
           <CardHeader>
             <CardTitle>第 3 步：素材与自动分析</CardTitle>
-            <CardDescription>主图已经作为起点上传。这里可以继续调整主图、排序和补充素材，然后重新运行 AI 分析。</CardDescription>
+            <CardDescription>主图已经作为起点上传。这里可以继续调整主图、补一张带标题的参考图，然后重新运行 AI 分析。</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
@@ -355,6 +414,29 @@ export function AnalysisWorkspace({
                 </div>
               ))}
             </div>
+            <ImageDropzone
+              disabled={uploadingReference || running}
+              aria-label="上传参考图"
+              className="flex cursor-pointer items-center justify-center gap-2 rounded-2xl border border-dashed border-slate-300 px-3 py-4 text-sm text-slate-600 transition hover:bg-slate-50 dark:border-white/15 dark:text-slate-300 dark:hover:bg-white/[0.04]"
+              onFiles={uploadReferenceImage}
+            >
+              {uploadingReference ? <Loader2 className="h-4 w-4 animate-spin" /> : <UploadCloud className="h-4 w-4" />}
+              上传参考图
+            </ImageDropzone>
+            <label className="flex items-start gap-3 rounded-2xl border border-border bg-muted/30 p-3">
+              <input
+                type="checkbox"
+                checked={preserveHeroTypographyFromReference}
+                onChange={(event) => void persistTypographyLock(event.target.checked)}
+                className="mt-1 h-4 w-4 rounded border-input"
+              />
+              <div className="space-y-1">
+                <p className="text-sm font-medium">第一张主图锁定参考图标题和字体</p>
+                <p className="text-xs leading-6 text-muted-foreground">
+                  勾选后，第一张头图会原样沿用参考图里的标题、字体、字号和位置，只把商品换成你的主图。
+                </p>
+              </div>
+            </label>
             <Button onClick={() => void runAnalysis()} disabled={running} className="w-full">
               {running ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
               重新运行 AI 商品分析

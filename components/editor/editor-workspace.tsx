@@ -2,14 +2,15 @@
 
 /**
  * [INPUT]: 依赖 useEditorStore、StatusBadge、生成/导出/rewrite-visual-prompt API、preview-config 的输出张数契约
- * [OUTPUT]: 对外提供 EditorWorkspace；模块树展示序号、标题、类型与生成状态；右栏可按当前文案重写双语视觉 Prompt
+ * [OUTPUT]: 对外提供 EditorWorkspace；模块树展示序号、标题、类型与生成状态；右栏可上传参考图并锁定第一张主图标题字体
  * [POS]: components/editor 的工作台主界面
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { ImagePlus, Languages, Loader2, MessageCircle, RotateCcw, Save, ShoppingCart, Sparkles, Star } from "lucide-react";
+import { ImagePlus, Languages, Loader2, MessageCircle, RotateCcw, Save, ShoppingCart, Sparkles, Star, UploadCloud } from "lucide-react";
 
+import { ImageDropzone } from "@/components/shared/image-dropzone";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -18,7 +19,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useEditorStore } from "@/hooks/use-editor-store";
+import { fileToBase64Payload } from "@/lib/utils/base64-upload";
 import { contentLanguageLabels, contentLanguageOptions, normalizeContentLanguage, type ContentLanguage } from "@/lib/utils/content-language";
+import { readGenerationSettings } from "@/lib/utils/generation-settings";
 import { readPreviewConfig, type ImageAspectRatio, type PreviewConfig } from "@/lib/utils/preview-config";
 
 interface EditorWorkspaceProps {
@@ -255,6 +258,7 @@ function sleep(ms: number) {
 function getActionText(action: string | null) {
   if (action === "generate") return "正在生成当前模块图，请稍候...";
   if (action === "regenerate") return "正在重新生成当前模块图，请稍候...";
+  if (action === "upload-reference") return "正在上传参考图，请稍候...";
   if (action === "repaint") return "正在基于当前图重绘，请稍候...";
   if (action === "enhance") return "正在基于当前图增强，请稍候...";
   if (action === "rewrite-prompt") return "正在按当前标题和文案重新生成 Prompt，请稍候...";
@@ -264,6 +268,9 @@ function getActionText(action: string | null) {
 export function EditorWorkspace({ project: initialProject }: EditorWorkspaceProps) {
   const [project, setProject] = useState(initialProject);
   const [checkedReferences, setCheckedReferences] = useState<string[]>([]);
+  const [preserveHeroTypographyFromReference, setPreserveHeroTypographyFromReference] = useState(
+    () => readGenerationSettings(initialProject.modelSnapshot).preserveHeroTypographyFromReference,
+  );
   const [runningAction, setRunningAction] = useState<string | null>(null);
   const [selectedHeroIndex, setSelectedHeroIndex] = useState(0);
   const [translationTargetLanguage, setTranslationTargetLanguage] = useState<ContentLanguage>("en-US");
@@ -309,6 +316,61 @@ export function EditorWorkspace({ project: initialProject }: EditorWorkspaceProp
     const payload = await response.json();
     if (payload.success) {
       setProject(payload.data);
+      setPreserveHeroTypographyFromReference(
+        readGenerationSettings(payload.data.modelSnapshot).preserveHeroTypographyFromReference,
+      );
+    }
+  };
+
+  const persistTypographyLock = async (checked: boolean) => {
+    setPreserveHeroTypographyFromReference(checked);
+    const response = await fetch(`/api/projects/${project.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        modelSnapshot: {
+          generationSettings: { preserveHeroTypographyFromReference: checked },
+        },
+      }),
+    });
+    const payload = await response.json();
+    if (!payload.success) {
+      setPreserveHeroTypographyFromReference(!checked);
+      toast.error(payload.error?.message ?? "锁定选项保存失败");
+      return;
+    }
+    if (payload.data) {
+      setProject(payload.data);
+    }
+  };
+
+  const uploadReferenceImage = async (files: File[]) => {
+    const file = files[0];
+    if (!file) return;
+    setRunningAction("upload-reference");
+    try {
+      const base64Payload = await fileToBase64Payload(file);
+      const response = await fetch(`/api/projects/${project.id}/assets/upload`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: "REFERENCE",
+          ...base64Payload,
+        }),
+      });
+      const payload = await response.json();
+      if (!payload.success) {
+        throw new Error(payload.error?.message ?? "参考图上传失败");
+      }
+      toast.success("参考图已上传");
+      await refreshProject();
+      if (payload.data?.id) {
+        setCheckedReferences((current) => (current.includes(payload.data.id) ? current : [...current, payload.data.id]));
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "参考图上传失败");
+    } finally {
+      setRunningAction(null);
     }
   };
 
@@ -794,6 +856,29 @@ export function EditorWorkspace({ project: initialProject }: EditorWorkspaceProp
                     ))}
                   </div>
                 )}
+                <ImageDropzone
+                  disabled={Boolean(runningAction)}
+                  aria-label="上传参考图"
+                  className="flex cursor-pointer items-center justify-center gap-2 rounded-2xl border border-dashed border-slate-300 px-3 py-3 text-sm text-slate-600 transition hover:bg-slate-50 dark:border-white/15 dark:text-slate-300 dark:hover:bg-white/[0.04]"
+                  onFiles={uploadReferenceImage}
+                >
+                  {runningAction === "upload-reference" ? <Loader2 className="h-4 w-4 animate-spin" /> : <UploadCloud className="h-4 w-4" />}
+                  上传参考图
+                </ImageDropzone>
+                <label className="flex items-start gap-3 rounded-2xl border border-border bg-muted/30 p-3">
+                  <input
+                    type="checkbox"
+                    checked={preserveHeroTypographyFromReference}
+                    onChange={(event) => void persistTypographyLock(event.target.checked)}
+                    className="mt-1 h-4 w-4 rounded border-input"
+                  />
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium">第一张主图锁定参考图标题和字体</p>
+                    <p className="text-xs leading-6 text-muted-foreground">
+                      勾选后，第一张头图会原样沿用参考图里的标题、字体、字号和位置，只把商品换成你的主图。
+                    </p>
+                  </div>
+                </label>
                 <p className="text-xs text-muted-foreground">系统会自动把主商品图作为产品锚点，这里勾选的是额外参考图，会一起以 base64 方式发送给 AI。</p>
               </div>
 

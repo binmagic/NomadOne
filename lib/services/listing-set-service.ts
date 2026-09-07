@@ -1,7 +1,7 @@
 /**
  * [INPUT]: 依赖 Prisma Project(kind=LISTING_SET)、generateSectionImage、ProviderAdapter、套图 prompt/schema
  * [OUTPUT]: 对外提供 enqueueListingSetGenerate、runListingSetGenerateTask、assistListingSetCopy、list/get 视图
- * [POS]: lib/services 的 Listing 套图内核。复用 PageSection 出图，不另起生图通道；任务挂在套图项目上
+ * [POS]: lib/services 的 Listing 套图内核。复用 PageSection 出图，不另起生图通道；任务挂在套图项目上。锁定参考图标题字体时第一张主图放开 noTextInImage 并写入 REFERENCE
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
@@ -38,6 +38,7 @@ import {
 import { assetPublicUrl, readStorageFile, saveUploadAsset } from "@/lib/storage/asset-manager";
 import { stripDataUrlPrefix } from "@/lib/utils/base64-upload";
 import { normalizeContentLanguage } from "@/lib/utils/content-language";
+import { readGenerationSettings } from "@/lib/utils/generation-settings";
 import type { ListingSetGenerateInput, ListingSetCopyAssistInput, ListingSetViralAssistInput } from "@/lib/validations/listing-set";
 import {
   defaultListingSetGroupCounts,
@@ -161,6 +162,7 @@ function readListingSetMeta(snapshot: unknown) {
     contentLanguage: normalizeContentLanguage(preview.contentLanguage),
     listingCopy: listingSet.generateListingCopy === false ? null : listingCopy,
     viralStyle: (data.viralStyle as ListingSetViralStyle | null) ?? null,
+    preserveHeroTypographyFromReference: readGenerationSettings(data).preserveHeroTypographyFromReference,
   };
 }
 
@@ -206,7 +208,12 @@ async function planListingSet(projectId: string): Promise<ListingSetPlan> {
   const meta = readListingSetMeta(project.modelSnapshot);
   const { provider, adapter } = await getProviderAdapter();
   const model = pickTextVisionModel(provider);
-  const images = await Promise.all(project.assets.slice(0, 4).map((asset) => assetToDataUrl(asset)));
+  const referenceAssets = project.assets.filter((asset) => asset.type === "REFERENCE");
+  const productAssets = project.assets.filter((asset) => asset.type !== "REFERENCE");
+  const planningAssets = meta.preserveHeroTypographyFromReference
+    ? [...referenceAssets.slice(0, 1), ...productAssets].slice(0, 4)
+    : project.assets.slice(0, 4);
+  const images = await Promise.all(planningAssets.map((asset) => assetToDataUrl(asset)));
 
   if (!model) {
     return fallbackPlan(project.name.replace(/套图$/, ""), meta.slotKeys, meta.sellingPoints);
@@ -225,6 +232,7 @@ async function planListingSet(projectId: string): Promise<ListingSetPlan> {
         slotKeys: meta.slotKeys,
         analyzeViralStyle: meta.analyzeViralStyle,
         generateListingCopy: meta.generateListingCopy,
+        preserveHeroTypographyFromReference: meta.preserveHeroTypographyFromReference,
       }),
       schema: listingSetPlanSchema,
       images,
@@ -280,6 +288,8 @@ async function persistPlan(projectId: string, plan: ListingSetPlan) {
   }
 
   if (project.sections.length === 0) {
+    const lockTypography = readGenerationSettings(project.modelSnapshot).preserveHeroTypographyFromReference;
+    const firstHeroIndex = plan.slots.findIndex((slot) => listingSetSlotCatalog[slot.slotKey].sectionType === "hero");
     await prisma.$transaction(
       plan.slots.map((slot, index) => {
         const catalog = listingSetSlotCatalog[slot.slotKey];
@@ -297,7 +307,7 @@ async function persistPlan(projectId: string, plan: ListingSetPlan) {
             status: "QUEUED",
             editableData: {
               slotKey: slot.slotKey,
-              noTextInImage: catalog.noTextInImage,
+              noTextInImage: lockTypography && index === firstHeroIndex ? false : catalog.noTextInImage,
               listingSet: true,
             },
           },
@@ -585,6 +595,7 @@ export async function enqueueListingSetGenerate(
         generationSettings: {
           uniformAspectRatio: true,
           allowSvgFallback: false,
+          preserveHeroTypographyFromReference: input.preserveHeroTypographyFromReference === true,
         },
         previewConfig: {
           heroImageCount: 5,
@@ -614,6 +625,20 @@ export async function enqueueListingSetGenerate(
         fileBuffer: Buffer.from(stripDataUrlPrefix(image.base64Data), "base64"),
         sortOrder: index,
         isMain: index === 0,
+      }),
+    ),
+  );
+
+  await Promise.all(
+    (input.referenceImages ?? []).map((image, index) =>
+      saveUploadAsset({
+        projectId: project.id,
+        type: "REFERENCE",
+        fileName: image.fileName,
+        mimeType: image.mimeType ?? "image/png",
+        fileBuffer: Buffer.from(stripDataUrlPrefix(image.base64Data), "base64"),
+        sortOrder: input.images.length + index,
+        isMain: false,
       }),
     ),
   );

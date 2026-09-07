@@ -2,7 +2,7 @@
 
 /**
  * [INPUT]: 依赖项目详情、plan-sections API、rewrite-visual-prompt API、preview-config、ProjectOutputConfigCard
- * [OUTPUT]: 对外提供 PlannerWorkspace；自动规划把当前 previewConfig 显式交给服务端；单模块可按当前文案重写双语视觉 Prompt
+ * [OUTPUT]: 对外提供 PlannerWorkspace；自动规划把当前 previewConfig 显式交给服务端；生成设置可锁第一张主图参考图标题字体；单模块可按当前文案重写双语视觉 Prompt
  * [POS]: components/planner 的规划工作台，张数只读分析页写入的输出配置
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -35,14 +35,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { contentLanguageLabels } from "@/lib/utils/content-language";
 import { buildDefaultVisualStyleGuide, normalizeVisualStyleGuide, type VisualStyleGuide } from "@/lib/utils/visual-style-guide";
 import { readPreviewConfig, type PreviewConfig } from "@/lib/utils/preview-config";
+import { readGenerationSettings, type GenerationSettings } from "@/lib/utils/generation-settings";
 import { sectionTypeLabels } from "@/types/domain";
 
 interface PlannerWorkspaceProps {
   project: any;
-}
-
-interface GenerationSettings {
-  allowSvgFallback: boolean;
 }
 
 interface BulkProgressState {
@@ -58,10 +55,6 @@ interface PlanningProgressState {
   stage: "idle" | "requesting" | "parsing" | "saving";
   detail: string;
 }
-
-const defaultGenerationSettings: GenerationSettings = {
-  allowSvgFallback: false,
-};
 
 const plannerSectionTypeOptions = [
   "hero",
@@ -89,13 +82,7 @@ function getPreviewConfig(project: any): PreviewConfig {
 }
 
 function getGenerationSettings(project: any): GenerationSettings {
-  const settings = project?.modelSnapshot?.generationSettings ?? {};
-  return {
-    allowSvgFallback:
-      typeof settings.allowSvgFallback === "boolean"
-        ? settings.allowSvgFallback
-        : defaultGenerationSettings.allowSvgFallback,
-  };
+  return readGenerationSettings(project?.modelSnapshot);
 }
 
 function getVisualStyleGuide(project: any): VisualStyleGuide {
@@ -469,6 +456,7 @@ export function PlannerWorkspace({ project }: PlannerWorkspaceProps) {
   const runSingleGeneration = async (section: any) => {
     setRunningSectionId(section.id);
     try {
+      await saveGenerationSettings({ silent: true });
       const endpoint = section.imageUrl ? "regenerate" : "generate";
       const response = await fetch(`/api/projects/${project.id}/sections/${section.id}/${endpoint}`, {
         method: "POST",
@@ -511,6 +499,7 @@ export function PlannerWorkspace({ project }: PlannerWorkspaceProps) {
     });
 
     try {
+      await saveGenerationSettings({ silent: true });
       for (let sectionIndex = 0; sectionIndex < generationQueue.length; sectionIndex += 1) {
         const section = generationQueue[sectionIndex];
         setBulkProgress((current) =>
@@ -692,6 +681,26 @@ export function PlannerWorkspace({ project }: PlannerWorkspaceProps) {
                     返回分析页调整配置
                   </Link>
                 </div>
+
+                <label className="flex items-start gap-3 rounded-2xl border border-border bg-background p-3">
+                  <input
+                    type="checkbox"
+                    checked={generationSettings.preserveHeroTypographyFromReference}
+                    onChange={(event) =>
+                      setGenerationSettings((current) => ({
+                        ...current,
+                        preserveHeroTypographyFromReference: event.target.checked,
+                      }))
+                    }
+                    className="mt-1 h-4 w-4 rounded border-input"
+                  />
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium">第一张主图锁定参考图标题和字体</p>
+                    <p className="text-xs leading-6 text-muted-foreground">
+                      勾选后，第一张头图会原样沿用参考图里的标题、字体、字号和位置，只把商品换成你的主图。没有参考图时不会生效。
+                    </p>
+                  </div>
+                </label>
 
                 <label className="flex items-start gap-3 rounded-2xl border border-border bg-background p-3">
                   <input
