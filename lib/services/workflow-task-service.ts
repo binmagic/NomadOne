@@ -22,6 +22,7 @@ import {
 } from "@/lib/services/task-service";
 import { generateXiaohongshuImages, type XiaohongshuImageAspectRatio } from "@/lib/services/xiaohongshu-service";
 import { runListingSetGenerateTask } from "@/lib/services/listing-set-service";
+import { runProductSwapGenerateTask } from "@/lib/services/product-swap-service";
 import { saveUploadAsset } from "@/lib/storage/asset-manager";
 import { normalizeContentLanguage, type ContentLanguage } from "@/lib/utils/content-language";
 import { env } from "@/lib/utils/env";
@@ -610,6 +611,11 @@ export async function retryWorkflowTask(
 
   if (task.taskType === "LISTING_SET_GENERATE") {
     runAuthedBackground(user, credentials, () => runListingSetGenerateTask(taskId));
+    return getTask(taskId);
+  }
+
+  if (task.taskType === "PRODUCT_SWAP_GENERATE") {
+    runAuthedBackground(user, credentials, () => runProductSwapGenerateTask(taskId));
     return getTask(taskId);
   }
 
