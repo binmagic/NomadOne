@@ -1,7 +1,7 @@
 /**
  * [INPUT]: 依赖 visual-prompt schema、ProviderAdapter、content-language、visual-style-guide
  * [OUTPUT]: 对外提供 buildVisualPromptWithAgent，把模块任务扩成生图用长 prompt
- * [POS]: lib/services 的出图前扩写层。默认图内字跟 title/copy；锁参考图标题字体时禁止改字
+ * [POS]: lib/services 的出图前扩写层。默认图内字跟 title/copy；锁参考图标题字体时禁止改字；主图身份不可被例子 SKU 替换
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 import type { ProductAsset } from "@prisma/client";
@@ -118,7 +118,7 @@ function buildAgentPrompt(input: BuildVisualPromptInput) {
     input.lockTypographyFromReference
       ? "- Do not translate or restyle locked overlay text, even if the target content language differs."
       : "- All visible text must be clear, correctly spelled, and in the target content language.",
-    "- Do not create category mistakes or impossible mechanics: no reversed airflow, cables entering furniture, floating unsupported objects, liquid flowing upward, broken shadows, impossible reflections, wrong hinges/openings, wrong cube layer count, wrong tile grid, wrong corner/edge/center structure, or hands passing through objects.",
+    "- Do not create category mistakes or impossible mechanics: no reversed airflow, cables entering furniture, floating unsupported objects, liquid flowing upward, broken shadows, impossible reflections, wrong hinges/openings, wrong part counts, or hands passing through objects. Do not substitute a different product than the main reference image.",
     "- Avoid vague words alone. Make every visual choice concrete.",
     "- For e-commerce sections, hero images and detail images must look like one cohesive commercial page: consistent color palette, background system, lighting direction, shadow softness, typography, CTA style, icon/badge language, spacing, and product rendering.",
     "- If reference images are attached, analyze them as geometry/style references, but do not describe them as 'uploaded image' inside the final artwork.",

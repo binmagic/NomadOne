@@ -1,3 +1,9 @@
+/**
+ * [INPUT]: 依赖 Prisma ProductAsset 的 type/fileName/isMain/sortOrder
+ * [OUTPUT]: 对外提供 buildProductAnalysisPrompt、buildProductAnalysisRepairPrompt
+ * [POS]: lib/ai/prompts 的商品分析口径。主图是品类事实源；禁止把任何具体 SKU 写进全局规则
+ * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+ */
 import type { ProductAsset } from "@prisma/client";
 
 const requiredJsonShape = `{
@@ -61,9 +67,8 @@ export function buildProductAnalysisPrompt(assets: ProductAsset[]) {
     "3. suggestedSectionPlan must contain at least 6 sections.",
     `4. suggestedSectionPlan.type must be one of: ${supportedSectionTypes}.`,
     "5. Focus on e-commerce conversion, visual hierarchy, and section planning, but every section must fit the real product category and mechanics shown in the main image.",
-    "6. First identify the exact product object, its category, visual structure, count of repeated parts, operation/mechanism, and what it must never be mistaken for. Put this into additionalInformation.",
-    "7. For puzzle cubes / speed cubes / Rubik-like cubes, explicitly capture: cube order such as 3x3x3 if visible, six colored faces, corner/edge/center pieces, twistable layers, seams, tile/sticker style, size if inferable, target users, and avoid treating it as a sticker craft, ruler, storage box, electronics product, or generic block.",
-    "8. additionalInformation must summarize important extra facts for generation, especially product dimensions if visible or inferable. Include placeholders for unknown but required facts: size, weight/capacity/power, compatible specifications, package contents, usage constraints, and safety notes.",
+    "6. First identify the exact product object, its category, visual structure, count of repeated parts, operation/mechanism, and what it must never be mistaken for. Put this into additionalInformation. Name only what the main image shows. Do not assume any example category, SKU, or toy type from these instructions.",
+    "7. additionalInformation must summarize important extra facts for generation, especially product dimensions if visible or inferable. Include placeholders for unknown but required facts: size, weight/capacity/power, compatible specifications, package contents, usage constraints, and safety notes.",
     "",
     "Return exactly this JSON shape:",
     requiredJsonShape,
