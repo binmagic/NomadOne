@@ -1,7 +1,7 @@
 /**
  * [INPUT]: 依赖 Prisma PageSection/ProductAsset、content-language
  * [OUTPUT]: 对外提供详情页生图/重绘/增强/翻译/SVG 布局提示词，以及 buildPhysicalRealityInstruction
- * [POS]: lib/ai/prompts 的出图口径。默认图内字以 title/copy 为准；第一张头图可锁参考图标题字体，此时 title/copy 让路
+ * [POS]: lib/ai/prompts 的出图口径。默认图内字以 title/copy 为准；第一张头图可锁参考图标题字体，此时 title/copy 让路；禁止把参考图换成全局例子商品
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 import type { PageSection, ProductAsset } from "@prisma/client";
@@ -64,8 +64,8 @@ export function buildPhysicalRealityInstruction() {
     "Respect product physics and product-specific mechanical logic.",
     "Infer how the product actually works from the uploaded image and section goal: cable exit points, vents, nozzles, hinges, openings, drawers, buttons, handles, gravity, shadows, reflections, support surfaces, airflow, liquid flow, and user interaction direction.",
     "Do not create impossible physical effects: reversed airflow, cords disappearing into furniture, floating unsupported products, hands passing through solid parts, liquids flowing upward, disconnected shadows, impossible reflections, text crossing through product geometry, or parts bending in a way the material cannot.",
+    "The attached product photo is the only allowed product. Ignore any example object, toy, appliance, or SKU mentioned in generic instructions that is not this product.",
     "For hair dryers specifically, airflow must leave the front nozzle, the rear intake must not emit wind, and the power cord must connect naturally from the handle/base instead of merging into a desk or wall.",
-    "For Rubik's cubes, speed cubes, puzzle cubes and other mechanical toys: preserve the correct cube order such as 3x3x3 when stated or visible, keep six square color faces, visible corner/edge/center piece logic, real twistable layer seams, rounded or straight tile style matching the reference, and do not turn it into a ruler, sticker sheet, generic storage box, electronics device, or unrelated block toy.",
   ].join(" ");
 }
 

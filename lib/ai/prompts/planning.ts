@@ -1,7 +1,7 @@
 /**
  * [INPUT]: 依赖 product-analysis schema、domain 标签、content-language、preview-config 的默认张数
  * [OUTPUT]: 对外提供 buildSectionPlanningPrompt、buildVisualStyleGuidePrompt
- * [POS]: lib/ai/prompts 的详情页规划提示词，detailSectionCount=0 时只规划头图。visualPrompt 必须逐字引用该模块 title/copy 作为图内字
+ * [POS]: lib/ai/prompts 的详情页规划提示词，detailSectionCount=0 时只规划头图。visualPrompt 必须逐字引用该模块 title/copy 作为图内字；商品身份跟 productName，禁止换成例子 SKU
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 import type { ProductAnalysisOutput } from "@/lib/ai/schemas/product-analysis";
@@ -52,7 +52,7 @@ export function buildSectionPlanningPrompt(
     "Every section must include product-specific negative constraints in visualPrompt: state what must NOT happen for this product.",
     "Examples: for a hair dryer, airflow must come out of the nozzle only and never blow backward from the rear intake; the power cord must exit from the handle/base and remain visible, never disappearing into a table or wall; hair and fabric should react in the airflow direction. For a lamp, light must emit from the lamp head, not from the cable. For containers, openings, lids, drawers and hinges must align with the real product geometry.",
     "Avoid impossible physics: floating products without support, cables merging into surfaces, reversed airflow, liquids flowing upward, disconnected shadows, impossible reflections, text wrapped through objects, hands gripping through solid parts, and product parts bending in ways the real material cannot.",
-    "Use the structured product analysis, which was produced from the uploaded main product image, as the geometry source of truth. Do not redesign the product mechanism. The image itself will be referenced again during image generation.",
+    "Keep the product identity from productName/category. Do not redesign the mechanism and do not swap in an unrelated example SKU. The uploaded main image will be referenced again during image generation and must remain that same product.",
   ];
 
   return [
@@ -67,7 +67,7 @@ export function buildSectionPlanningPrompt(
     "The visualStyleGuide is the source of truth for visual consistency across hero images and detail-page images.",
     "Before writing sections, reason from the product analysis as the source of truth: exact product category, visible geometry, mechanism, repeated-part count, materials, colors, size/spec facts, and what the product must not be mistaken for.",
     "Do not create generic manufacturing, craft, measuring-ruler, sticker-sheet, electronics, storage-box, appliance, or unrelated sections unless the product analysis clearly supports them.",
-    "For puzzle cubes / speed cubes / Rubik-like cubes, the detail page should explain cube order, turning feel, layer seams, corner/edge/center pieces, color recognition, grip, stability, suitable users, package contents and real dimensions; avoid claiming unrelated sticker cutting, ruler measurement props, batteries, cables, airflow, screens, or appliance functions.",
+    "Do not invent a different product category than the analysis. Section copy must explain this product's real parts, mechanism, and use — never a leftover example SKU.",
     ...(detailSectionCount === 0
       ? [
           `The output must contain exactly ${heroImageCount} sections in total.`,
