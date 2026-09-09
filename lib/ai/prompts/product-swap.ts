@@ -1,7 +1,7 @@
 /**
  * [INPUT]: 依赖 generation.ts 的 buildPhysicalRealityInstruction
  * [OUTPUT]: 对外提供实拍换品 / 重新生成提示词
- * [POS]: lib/ai/prompts 的换品口径。场景图是底板，本品图只提供身份；禁止锁字体、禁止商业精修
+ * [POS]: lib/ai/prompts 的换品口径。场景图是底板，本品图只提供身份；禁止锁字体、禁止商业精修、禁止新加 ACT 购买按钮
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
@@ -21,7 +21,7 @@ function buildCoreSwapPrompt(notes: string) {
     "The inserted product must keep the identity of Image 2: category, silhouette, proportions, color, material, logos and markings printed on the product. Do not invent a similar object.",
     "Hands must grip the new product. Contact shadows, occlusions and reflections of the inserted product must match the scene's existing light.",
     buildPhysicalRealityInstruction(),
-    "Do not add captions, headlines, badges, watermarks, QR codes, platform UI, or extra logos. Do not change text that already exists in the scene (clothing prints, posters, screens).",
+    "Do not add captions, headlines, badges, watermarks, QR codes, platform UI, extra logos, or ACT/CTA purchase buttons such as 立即购买 / 立即抢购 / Buy Now. Do not change text that already exists in the scene (clothing prints, posters, screens).",
     "Output exactly one still image with the same framing as Image 1.",
     extra,
   ]

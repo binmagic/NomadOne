@@ -9,11 +9,12 @@ project-service.ts: 项目 CRUD 与所有权断言，listProjects 排除系统�
 provider-service.ts: Provider 按用户隔离；isActive 的 updateMany 必须 where userId；getProviderAdapter 读 ALS 并把 AppSettings.modelTimeoutMs 注入适配器；保存时把分配 ID 合成为模型档案，capabilities.__source=custom 的手填模型在重新发现后仍保留
 workflow-task-service.ts: 每用户一个 __nomadone_system_task__ 占位项目；后台任务 withUser + provider credentials 双 ALS；retry 含 LISTING_SET_GENERATE / PRODUCT_SWAP_GENERATE
 task-service.ts: getOwnedTask 经 project.userId 过滤；内部 getTask 仍按 id
-generation-service.ts / planner-service.ts / analysis-service.ts / xiaohongshu-service.ts / listing-set-service.ts: 通过 getProviderAdapter 间接收到当前用户；分析写快照必须 merge previewConfig；规划张数读 preview-config 契约；第一张 HERO 可按 generationSettings.preserveHeroTypographyFromReference 把 REFERENCE 放在参考图首位并锁标题字体
+generation-service.ts / planner-service.ts / analysis-service.ts / xiaohongshu-service.ts / listing-set-service.ts: 通过 getProviderAdapter 间接收到当前用户；分析写快照必须 merge previewConfig；规划张数读 preview-config 契约；第一张 HERO 可按 generationSettings.preserveHeroTypographyFromReference 把 REFERENCE 放在参考图首位并锁标题字体；出图与规划兜底禁止 ACT 购买按钮
+visual-prompt-agent.ts: 出图前扩写必须复用 buildNoActButtonInstruction，禁止把 CTA 写回 finalPrompt
 visual-prompt-rewrite-service.ts: 按当前 title/goal/copy 重写单模块双语 visualPrompt，经 updateSection 写回；失败时双语兜底，不整页规划、不写生图 Agent 长 prompt
 listing-set-service.ts: 商品套图按 userId 隔离；enqueueListingSetGenerate 建 LISTING_SET 项目后入队，后台 plan + generateSectionImage；主图槽位默认 noTextInImage，锁定参考图标题字体时第一张放开并写入 REFERENCE
 product-swap-service.ts: 实拍换品按 userId 隔离；enqueue 建 PRODUCT_SWAP 项目后入队；后台只走 editImage，scene=image，product=referenceImages；禁止 SVG / generateImage / 字体锁定
-studio-service.ts: 对话生图按 userId 隔离；enqueueStudioMessage 立刻写 PENDING，后台 withUser+凭证 ALS 跑 generateImage/editImage
+studio-service.ts: 对话生图按 userId 隔离；enqueueStudioMessage 立刻写 PENDING，后台 withUser+凭证 ALS 跑 generateImage/editImage；生成/改图 prompt 注入禁止 ACT 购买按钮
 export-service.ts: 导出前由路由层 assertProjectOwned
 provider-runtime.ts: 请求级 API Key ALS，与用户 ALS 正交，不存密钥
 

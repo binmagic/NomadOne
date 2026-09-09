@@ -13,6 +13,6 @@ generation-settings.ts: 生图设置读取；allowSvgFallback / uniformAspectRat
 model-snapshot.ts: Project.modelSnapshot 合并契约；分析/PATCH 写回必须 merge，禁止整袋替换
 route.ts: API 出口闸门，ok / fail / handleRouteError
 section.ts: Prisma SectionType 到 domain key 的映射
-visual-style-guide.ts: 项目级视觉规范的读取、归一与默认值
+visual-style-guide.ts: 项目级视觉规范的读取、归一与默认值；默认规范禁止图内 ACT 购买按钮
 
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

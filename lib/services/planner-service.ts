@@ -1,7 +1,7 @@
 /**
  * [INPUT]: 依赖 prisma、provider adapter、planning prompts/schema、preview-config、task-service
  * [OUTPUT]: 对外提供 planSections、模块增删改排序、视觉规范重算
- * [POS]: lib/services 的详情页规划内核；张数只认 previewConfig，读数走 preview-config 契约。落库时把模块 title/copy 锁进 visualPrompt 作为图内字
+ * [POS]: lib/services 的详情页规划内核；张数只认 previewConfig，读数走 preview-config 契约。落库时把模块 title/copy 锁进 visualPrompt 作为图内字；兜底 visualPrompt 禁止 ACT 购买按钮
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 import { Prisma } from "@prisma/client";
@@ -96,7 +96,7 @@ const heroFallbackSections: Array<{
     goal: "用一张强转化头图把最值得买的理由直接讲透。",
     copy: "把商品最强卖点直接做进画面标题和图内短句里，让用户第一时间知道为什么值得买。",
     visualPrompt:
-      "中文提示：1:1 核心卖点头图，画面采用近景产品 + 功能分解标注，商品主体放在右侧或中间，左侧放强转化标题、3 个短卖点和 CTA。镜头要明确展示最关键功能部位，例如喷口/开口/抽屉/按键/材质接缝；所有标注线必须指向真实部件。禁止出现结构错位、功能方向反转、线缆断裂或穿进桌面。\nEnglish Prompt: Square selling-point hero image with close product view and functional annotations. Place product at center or right, strong conversion headline, three short selling points, and CTA on the left. Clearly show the key functional part such as nozzle, opening, drawer, button, or material seam. Annotation lines must point to real parts; avoid misaligned structure, reversed function direction, broken cables, or cables entering furniture.",
+      "中文提示：1:1 核心卖点头图，画面采用近景产品 + 功能分解标注，商品主体放在右侧或中间，左侧放强转化标题和 3 个短卖点，不要立即购买/立即抢购等 ACT 按钮。镜头要明确展示最关键功能部位，例如喷口/开口/抽屉/按键/材质接缝；所有标注线必须指向真实部件。禁止出现结构错位、功能方向反转、线缆断裂或穿进桌面。\nEnglish Prompt: Square selling-point hero image with close product view and functional annotations. Place product at center or right, strong conversion headline and three short selling points on the left. No ACT/CTA purchase buttons. Clearly show the key functional part such as nozzle, opening, drawer, button, or material seam. Annotation lines must point to real parts; avoid misaligned structure, reversed function direction, broken cables, or cables entering furniture.",
     editableFields: {
       tone: "转化导向",
       compositionHint: "主体 + 卖点文案同屏",
@@ -135,7 +135,7 @@ const heroFallbackSections: Array<{
     goal: "突出相对竞品或常规选择的差异化优势。",
     copy: "围绕核心差异化特点，用更直接的对比式表达完成最后一张头图收口。",
     visualPrompt:
-      "中文提示：电商头图，突出差异化优势和购买理由，图内直接排版中文对比式标题、优势短句和行动号召，适合 1:1 头图轮播。\nEnglish Prompt: Square e-commerce hero image emphasizing differentiation and buying reasons, with Chinese comparison-style headline, advantage copy, and CTA built directly into the image.",
+      "中文提示：电商头图，突出差异化优势和购买理由，图内直接排版中文对比式标题和优势短句，不要立即购买/立即抢购等 ACT 按钮，适合 1:1 头图轮播。\nEnglish Prompt: Square e-commerce hero image emphasizing differentiation and buying reasons, with Chinese comparison-style headline and advantage copy built directly into the image. No ACT/CTA purchase buttons.",
     editableFields: {
       tone: "差异化强调",
       compositionHint: "对比式信息布局",
@@ -251,7 +251,7 @@ const detailFallbackSections: Array<{
     goal: "形成最后一轮转化推动。",
     copy: "通过总结式收口，帮助用户更快完成购买决策。",
     visualPrompt:
-      "中文提示：总结收口型详情图，商品主体清晰，图内直接放入中文总结标题、购买理由和行动号召。\nEnglish Prompt: Conversion-closing summary image with strong product focus and Chinese summary copy plus CTA integrated directly into the visual.",
+      "中文提示：总结收口型详情图，商品主体清晰，图内直接放入中文总结标题和购买理由，不要立即购买/立即抢购等 ACT 按钮。\nEnglish Prompt: Conversion-closing summary image with strong product focus and Chinese summary copy integrated directly into the visual. No ACT/CTA purchase buttons.",
     editableFields: {
       tone: "收口转化",
       compositionHint: "稳定收束",
@@ -306,7 +306,7 @@ function normalizeEditableFields(value: unknown): Record<string, unknown> {
     styleRole: typeof raw.styleRole === "string" ? raw.styleRole : "Follow the project-level visual style guide while serving this section goal.",
     sharedStyleAnchors: Array.isArray(raw.sharedStyleAnchors)
       ? raw.sharedStyleAnchors
-      : ["consistent color palette", "consistent background system", "consistent lighting direction", "consistent typography and CTA style", "accurate product proportions and materials"],
+      : ["consistent color palette", "consistent background system", "consistent lighting direction", "consistent typography", "no ACT/CTA purchase buttons", "accurate product proportions and materials"],
     localVariation: typeof raw.localVariation === "string" ? raw.localVariation : "Only vary the section-specific selling point, composition angle, and information hierarchy.",
   };
 }

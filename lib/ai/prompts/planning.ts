@@ -1,7 +1,7 @@
 /**
  * [INPUT]: 依赖 product-analysis schema、domain 标签、content-language、preview-config 的默认张数
  * [OUTPUT]: 对外提供 buildSectionPlanningPrompt、buildVisualStyleGuidePrompt
- * [POS]: lib/ai/prompts 的详情页规划提示词，detailSectionCount=0 时只规划头图。visualPrompt 必须逐字引用该模块 title/copy 作为图内字；商品身份跟 productName，禁止换成例子 SKU
+ * [POS]: lib/ai/prompts 的详情页规划提示词，detailSectionCount=0 时只规划头图。visualPrompt 必须逐字引用该模块 title/copy 作为图内字；商品身份跟 productName，禁止换成例子 SKU；title/copy/visualPrompt 禁止 ACT 购买按钮
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 import type { ProductAnalysisOutput } from "@/lib/ai/schemas/product-analysis";
@@ -81,16 +81,17 @@ export function buildSectionPlanningPrompt(
     "All hero sections must come first in the output array.",
     `Hero sections represent individual square hero gallery images, so each hero section must have a distinct first-screen communication role across these ${heroImageCount} angles.`,
     "The hero sections should cover different roles such as primary visual, core selling point, scenario mood, trust, and differentiation without repeating the same purpose.",
-    "For each hero section, describe a different concrete picture: camera angle, crop, product placement, scene/background, props, lighting, in-image title position, selling-point callouts, CTA placement, and what exact product feature is visible.",
+    "For each hero section, describe a different concrete picture: camera angle, crop, product placement, scene/background, props, lighting, in-image title position, selling-point callouts, and what exact product feature is visible. Do not describe ACT/CTA purchase button placement.",
     "Hero section visualPrompts must not reuse the same generic sentence. Each one needs at least 3 concrete visual details unique to that image.",
     "All non-hero sections must come after the hero sections.",
     "Each section item must include: id, type, title, goal, copy, visualPrompt, editableFields.",
-    "Each section.visualPrompt must explicitly cite how it follows the shared visualStyleGuide: same palette, background system, lighting, typography, CTA style, safe margins, product rendering rules, and negative constraints.",
+    "Each section.visualPrompt must explicitly cite how it follows the shared visualStyleGuide: same palette, background system, lighting, typography, safe margins, product rendering rules, and negative constraints.",
     `All user-facing section titles, goals, copy, and in-image text instructions must be written in ${targetLanguage}.`,
     "Write each section in this order: title, goal, copy, then visualPrompt.",
-    "title is the exact in-image headline. copy is the exact in-image selling points, supporting copy, and CTA.",
+    "title is the exact in-image headline. copy is the exact in-image selling points and supporting copy.",
+    "Do not put ACT/CTA purchase slogans or buttons into title, copy, or visualPrompt: no 立即抢购, 立即购买, 马上抢, 立即下单, 加入购物车, Buy Now, Shop Now, Order Now, Add to Cart, or fake tap-target pills.",
     "visualPrompt is a visual direction derived from that title and copy, not a second set of slogans.",
-    "visualPrompt must quote title and copy verbatim as the in-image words. Do not invent a different headline, slogan, selling point, or CTA inside visualPrompt.",
+    "visualPrompt must quote title and copy verbatim as the in-image words. Do not invent a different headline, slogan, selling point, or ACT button inside visualPrompt.",
     "visualPrompt must use this exact two-part format:",
     `Primary Prompt: <visual direction in ${targetLanguage}, including the verbatim title and copy as in-image text>`,
     "English Prompt: <English image prompt that specifies the same verbatim in-image words as title and copy>",

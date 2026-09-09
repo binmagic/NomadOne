@@ -1,7 +1,7 @@
 /**
  * [INPUT]: 依赖 types/domain 的套图槽位目录、content-language 的语种名
  * [OUTPUT]: 对外提供套图规划/卖点扩写提示词，以及槽位视觉模板
- * [POS]: lib/ai/prompts 的 Listing 套图口径。主图默认禁止图内字；锁定参考图标题字体时第一张例外
+ * [POS]: lib/ai/prompts 的 Listing 套图口径。主图默认禁止图内字；锁定参考图标题字体时第一张例外；全槽位禁止 ACT 购买按钮
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
@@ -25,7 +25,7 @@ export const listingSetVisualTemplates: Record<ListingSetSlotKey, string> = {
   detail:
     "Premium product detail board: 1 hero close-up plus 2-3 callout annotations pointing at REAL parts visible on the reference (seams, buttons, fabric weave, ports, stitching, coating). Short labels in the target language, designed as commercial typography, not as a screenshot of a website. White or soft studio ground.",
   selling:
-    "High-conversion selling-point infographic built around a large, accurate product render. 3-4 short benefit lines in the target language, clear hierarchy, generous margins, no medical/legal guaranteed claims, no 'No.1' or competitor comparison unless asked. Product identity locked to the reference.",
+    "High-conversion selling-point infographic built around a large, accurate product render. 3-4 short benefit lines in the target language, clear hierarchy, generous margins, no medical/legal guaranteed claims, no 'No.1' or competitor comparison unless asked, no ACT/CTA purchase buttons. Product identity locked to the reference.",
   specs:
     "Clean specification visual: product on one side, structured spec rows on the other (size, material, weight, contents, compatibility) in the target language. Do not invent certifications. Keep numbers conservative if unknown; prefer qualitative facts from the photos.",
   usage:
@@ -62,6 +62,7 @@ function platformCompliance(
       : "First image (hero_white) must pass typical main-image compliance: white/clean background, product fully visible, no promotional text, no watermarks, no QR codes, no platform UI.",
     "Do not invent medical, financial, ranking or 'guaranteed' claims.",
     "Do not add competitor brand names or fake certifications.",
+    "Do not put ACT/CTA purchase buttons or slogans in any slot: no 立即抢购, 立即购买, Buy Now, Shop Now, Order Now, Add to Cart, or fake tap-target pills.",
     market === "cn"
       ? "Scenes, interiors and people should feel natural for mainland China e-commerce."
       : market === "sea"
@@ -93,7 +94,7 @@ export function buildListingSetPlanPrompt(input: ListingSetPromptContext) {
     input.preserveHeroTypographyFromReference
       ? "hero_white visualPrompt must lock overlay titles and fonts from the typography reference poster and only swap the product. scene / model / usage prompts must still forbid overlay text."
       : "hero_white / scene / model / usage prompts must forbid overlay text.",
-    "detail / selling / specs / comparison / material prompts should design short typography into the frame.",
+    "detail / selling / specs / comparison / material prompts should design short typography into the frame, still without ACT/CTA purchase buttons.",
     input.generateListingCopy
       ? "listingCopy must include a marketplace title, 3-6 short selling points, a 60-120 word description, and a few search keywords. No fake discounts."
       : "Still fill listingCopy with conservative factual copy inferred from the photos.",
