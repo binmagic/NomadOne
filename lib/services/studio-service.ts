@@ -1,11 +1,12 @@
 /**
- * [INPUT]: 依赖 getProviderAdapter、adapter.generateImage/editImage、studio 落盘、Prisma StudioConversation、用户/凭证 ALS
+ * [INPUT]: 依赖 getProviderAdapter、adapter.generateImage/editImage、studio 落盘、Prisma StudioConversation、用户/凭证 ALS、generation.ts 的 buildNoActButtonInstruction
  * [OUTPUT]: 对外提供会话 CRUD 与 enqueueStudioMessage；出图在进程内后台跑完，页面只轮询
- * [POS]: lib/services 的对话生图内核。不碰 Project/Section；PENDING 消息即任务状态
+ * [POS]: lib/services 的对话生图内核。不碰 Project/Section；PENDING 消息即任务状态；出图默认禁止 ACT 购买按钮
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
 import type { ImageGenerationResult } from "@/lib/ai/provider-client";
+import { buildNoActButtonInstruction } from "@/lib/ai/prompts/generation";
 import { withUser } from "@/lib/auth/request-user";
 import { prisma } from "@/lib/db/prisma";
 import { getProviderAdapter } from "@/lib/services/provider-service";
@@ -144,13 +145,19 @@ function persistImageSource(result: ImageGenerationResult) {
 function buildGeneratePrompt(prompt: string, aspectRatio: StudioAspectRatio) {
   return [
     `生成一张高质量 ${aspectRatio} 图片。严格按用户要求，不要添加用户没要的水印或乱码文字。`,
+    buildNoActButtonInstruction(),
     "",
     `用户要求：${prompt}`,
   ].join("\n");
 }
 
 function buildEditPrompt(prompt: string) {
-  return [`按用户要求修改当前图片，未提及的部分保持不变。`, "", `用户要求：${prompt}`].join("\n");
+  return [
+    `按用户要求修改当前图片，未提及的部分保持不变。`,
+    buildNoActButtonInstruction(),
+    "",
+    `用户要求：${prompt}`,
+  ].join("\n");
 }
 
 export async function listStudioConversations(userId: string): Promise<StudioConversationSummary[]> {

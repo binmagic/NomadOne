@@ -1,4 +1,11 @@
+/**
+ * [INPUT]: 依赖 xiaohongshuPlanSchema、getProviderAdapter、buildVisualPromptWithAgent、generation.ts 的 buildNoActButtonInstruction
+ * [OUTPUT]: 对外提供小红书图文规划与按页生图
+ * [POS]: lib/services 的小红书图文内核。规划出标题/版式，出图走 visual-prompt-agent 而非详情页 section 管线；禁止购买 ACT 按钮
+ * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+ */
 import { xiaohongshuPlanSchema, type XiaohongshuPlan } from "@/lib/ai/schemas/xiaohongshu";
+import { buildNoActButtonInstruction } from "@/lib/ai/prompts/generation";
 import type { ImageGenerationResult } from "@/lib/ai/provider-client";
 import { getProviderAdapter } from "@/lib/services/provider-service";
 import { buildVisualPromptWithAgent } from "@/lib/services/visual-prompt-agent";
@@ -48,6 +55,7 @@ function buildXiaohongshuPrompt(input: XiaohongshuPlanInput) {
     "Mention concrete visual composition: subject, background, text position, color mood, props and safe margins.",
     "Add product/topic-specific physical constraints: correct airflow direction, cable routes, gravity, hinges, openings, liquid/light direction, support surfaces and contact shadows.",
     "Avoid medical/legal/financial guaranteed claims.",
+    "Do not put ACT/CTA purchase buttons or slogans in any page: no 立即抢购, 立即购买, Buy Now, Shop Now, or fake tap-target pills.",
     input.images?.length
       ? "Reference images are attached. Use them only to understand product/object/style and constraints."
       : "No reference image was uploaded.",
@@ -90,8 +98,8 @@ function makeFallbackPage(index: number, topic: string, imageAspectRatio: Xiaoho
       title: "最后记住这几点",
       subtitle: "总结收藏",
       body: "收束为清晰结论，引导收藏、评论或行动。",
-      visualDirection: "总结清单页，温和 CTA，整体干净适合收藏。",
-      layout: "标题、清单、底部 CTA 三段式。",
+      visualDirection: "总结清单页，无购买按钮，整体干净适合收藏。",
+      layout: "标题、清单、底部收藏提示三段式。",
     },
     {
       title: "细节别踩坑",
@@ -125,7 +133,7 @@ function makeFallbackPage(index: number, topic: string, imageAspectRatio: Xiaoho
     visualDirection: `${imageAspectRatio} 小红书图文页。${template.visualDirection}`,
     layout: template.layout,
     imagePrompt: "",
-    negativePrompt: "不要乱码，不要文字拥挤，不要主体变形，不要违反真实物理规律的画面。",
+    negativePrompt: "不要乱码，不要文字拥挤，不要主体变形，不要违反真实物理规律的画面。不要立即购买、立即抢购、Buy Now 等 ACT 购买按钮。",
   };
 }
 
@@ -184,7 +192,7 @@ function normalizeXiaohongshuPlan(
       `${imageAspectRatio} 小红书图文页，主体清晰，中文标题居上，内容分区明确，留白充足。`;
     const layout = page.layout.trim() || fallback.layout;
     const negativePrompt =
-      page.negativePrompt.trim() || "不要乱码、不要文字拥挤、不要不符合真实物理逻辑的画面。";
+      page.negativePrompt.trim() || "不要乱码、不要文字拥挤、不要不符合真实物理逻辑的画面。不要立即购买、立即抢购、Buy Now 等 ACT 购买按钮。";
 
     return {
       ...page,
@@ -293,6 +301,7 @@ function buildPageImagePrompt(
     "",
     `生成一张适合小红书图文轮播的 ${imageAspectRatio} 图片。`,
     "图内必须包含中文标题、核心短句和必要的信息层级，文字要清晰，不要乱码，不要挤压。",
+    buildNoActButtonInstruction(),
     "整体要像真实可发布的小红书图文页，而不是网页截图或空白海报。",
     `整组内容主题：${plan.topic}`,
     `目标人群：${plan.audience}`,

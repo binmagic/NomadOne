@@ -1,11 +1,12 @@
 /**
- * [INPUT]: 依赖 visual-prompt schema、ProviderAdapter、content-language、visual-style-guide
+ * [INPUT]: 依赖 visual-prompt schema、ProviderAdapter、content-language、visual-style-guide、generation.ts 的 buildNoActButtonInstruction
  * [OUTPUT]: 对外提供 buildVisualPromptWithAgent，把模块任务扩成生图用长 prompt
- * [POS]: lib/services 的出图前扩写层。默认图内字跟 title/copy；锁参考图标题字体时禁止改字；主图身份不可被例子 SKU 替换
+ * [POS]: lib/services 的出图前扩写层。默认图内字跟 title/copy；锁参考图标题字体时禁止改字；主图身份不可被例子 SKU 替换；扩写时必须带上禁止 ACT 购买按钮
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 import type { ProductAsset } from "@prisma/client";
 
+import { buildNoActButtonInstruction } from "@/lib/ai/prompts/generation";
 import { visualPromptAgentSchema } from "@/lib/ai/schemas/visual-prompt";
 import type { ProviderAdapter } from "@/lib/ai/provider-client";
 import type { ContentLanguage } from "@/lib/utils/content-language";
@@ -105,7 +106,7 @@ function buildAgentPrompt(input: BuildVisualPromptInput) {
     "- product/subject identity rules from reference images, especially the main product image as the non-negotiable source of truth",
     "- foreground, middle ground, background, props, scene, camera angle, product placement",
     "- lighting, material texture, color palette, depth, shadows and reflections",
-    "- in-image typography: title position, hierarchy, copy blocks, CTA/badges, safe margins",
+    "- in-image typography: title position, hierarchy, copy blocks, informational badges, safe margins — never ACT/CTA purchase buttons",
     "- product-specific physical rules and impossible phenomena to avoid",
     "- final quality bar for a polished Xiaohongshu/e-commerce visual",
     "- if a project-level visual style guide is provided, repeat and obey it as the highest-priority visual consistency contract",
@@ -113,14 +114,15 @@ function buildAgentPrompt(input: BuildVisualPromptInput) {
     "Important constraints:",
     "- Preserve the product/object identity from reference images. The main product image is the factual source of truth for category, geometry, count of parts, colors, labels, openings, mechanisms, proportions and material. Do not invent a different product.",
     input.lockTypographyFromReference
-      ? "- TYPOGRAPHY LOCK: the first reference image is a finished poster. Transplant every visible title, subtitle, badge, CTA and disclaimer character-for-character. Keep typeface, weight, size, color, tracking, outline, shadow and placement. Do not follow title/copy for overlay words. Only swap the product."
-      : "- In-image headline, selling points, supporting copy and CTA must match title and copy. If basePrompt uses different slogans, discard those words and follow title/copy.",
+      ? "- TYPOGRAPHY LOCK: the first reference image is a finished poster. Transplant every visible title, subtitle, informational badge and disclaimer character-for-character. Keep typeface, weight, size, color, tracking, outline, shadow and placement. Do not follow title/copy for overlay words. Only swap the product. Omit ACT/CTA purchase buttons from the transplant."
+      : "- In-image headline, selling points and supporting copy must match title and copy. If basePrompt uses different slogans, discard those words and follow title/copy. Drop any ACT/CTA purchase slogans even if they appear in title/copy.",
     input.lockTypographyFromReference
       ? "- Do not translate or restyle locked overlay text, even if the target content language differs."
       : "- All visible text must be clear, correctly spelled, and in the target content language.",
     "- Do not create category mistakes or impossible mechanics: no reversed airflow, cables entering furniture, floating unsupported objects, liquid flowing upward, broken shadows, impossible reflections, wrong hinges/openings, wrong part counts, or hands passing through objects. Do not substitute a different product than the main reference image.",
     "- Avoid vague words alone. Make every visual choice concrete.",
-    "- For e-commerce sections, hero images and detail images must look like one cohesive commercial page: consistent color palette, background system, lighting direction, shadow softness, typography, CTA style, icon/badge language, spacing, and product rendering.",
+    "- For e-commerce sections, hero images and detail images must look like one cohesive commercial page: consistent color palette, background system, lighting direction, shadow softness, typography, icon/badge language, spacing, and product rendering.",
+    `- ${buildNoActButtonInstruction()}`,
     "- If reference images are attached, analyze them as geometry/style references, but do not describe them as 'uploaded image' inside the final artwork.",
     "",
     "Task context:",
@@ -175,9 +177,9 @@ function buildFallbackPrompt(input: BuildVisualPromptInput) {
     "Create a concrete composition: define foreground subject placement, middle-ground information blocks, background scene, camera angle, crop, props, lighting direction, shadows, reflections, material texture, color palette, and depth.",
     input.lockTypographyFromReference
       ? "Overlay typography is locked to the first reference poster. Copy every visible word and font exactly. Do not invent new headlines from title/copy."
-      : "Typography must be designed inside the image with clear hierarchy: large readable title, short supporting copy, 2-4 concise labels or selling points, and optional CTA/badge placed away from product edges.",
+      : "Typography must be designed inside the image with clear hierarchy: large readable title, short supporting copy, and 2-4 concise labels or selling points placed away from product edges. Do not add ACT/CTA purchase buttons.",
     "Respect real-world physics and product mechanics: correct airflow/light/liquid direction, visible cable exit points, realistic support surfaces, gravity, contact shadows, aligned hinges/openings/drawers/buttons/handles.",
-    "Negative constraints: no garbled text, no over-crowded typography, no distorted product geometry, no floating unsupported product, no cables merging into tables or walls, no reversed airflow, no impossible reflections, no hands passing through solid parts.",
+    `Negative constraints: no garbled text, no over-crowded typography, no distorted product geometry, no floating unsupported product, no cables merging into tables or walls, no reversed airflow, no impossible reflections, no hands passing through solid parts. ${buildNoActButtonInstruction()}`,
     "Final output should be a polished, commercially usable image with crisp details and no explanatory UI chrome.",
   ].join("\n");
 }

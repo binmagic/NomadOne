@@ -1,7 +1,7 @@
 /**
  * [INPUT]: 依赖 Prisma PageSection/ProductAsset、content-language
- * [OUTPUT]: 对外提供详情页生图/重绘/增强/翻译/SVG 布局提示词，以及 buildPhysicalRealityInstruction
- * [POS]: lib/ai/prompts 的出图口径。默认图内字以 title/copy 为准；第一张头图可锁参考图标题字体，此时 title/copy 让路；禁止把参考图换成全局例子商品
+ * [OUTPUT]: 对外提供详情页生图/重绘/增强/翻译/SVG 布局提示词，以及 buildPhysicalRealityInstruction、buildNoActButtonInstruction
+ * [POS]: lib/ai/prompts 的出图口径。默认图内字以 title/copy 为准；第一张头图可锁参考图标题字体，此时 title/copy 让路；禁止把参考图换成全局例子商品；禁止图内 ACT 购买按钮
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 import type { PageSection, ProductAsset } from "@prisma/client";
@@ -53,7 +53,7 @@ function buildTargetLanguageInstruction(contentLanguage: ContentLanguage) {
 
   return [
     `All user-facing marketing copy that appears inside the image must be written in ${targetLanguage}.`,
-    `The section title, key selling points, short supporting copy, disclaimers, and CTA should all be in ${targetLanguage} when they appear in the image.`,
+    `The section title, key selling points, short supporting copy, and disclaimers should all be in ${targetLanguage} when they appear in the image.`,
     "Do not mix in Simplified Chinese unless the target language is Simplified Chinese.",
     "Keep the typography native, polished, and commercially readable for the target language.",
   ].join(" ");
@@ -69,11 +69,22 @@ export function buildPhysicalRealityInstruction() {
   ].join(" ");
 }
 
+export function buildNoActButtonInstruction() {
+  return [
+    "NO ACT/CTA BUTTONS — hard visual constraint. Overrides title, copy, visual prompt, style guide, and typography lock.",
+    "The image must not contain any call-to-action purchase button, pill, shop bar, or tap-target control.",
+    "Forbidden labels include: 立即抢购, 立即购买, 马上抢, 马上购买, 立即下单, 点击购买, 加入购物车, 限时抢购, 马上抢购, Buy Now, Shop Now, Order Now, Add to Cart, Get it now, and any similar purchase or urgency ACT.",
+    "Do not draw button chrome: rounded rectangles with drop shadows, filled pills that look tappable, fake marketplace buy bars, or platform UI.",
+    "If title, copy, or a locked reference poster contains those words, omit them from the artwork. Do not keep them as plain text either.",
+    "Titles, selling-point labels, spec rows, and informational badges remain allowed. Purchase ACT buttons are not.",
+  ].join(" ");
+}
+
 function buildTypographyLockInstruction() {
   return [
-    "TYPOGRAPHY LOCK — highest priority, overrides section title, section copy, visual prompt wording, and target-language overlay rules.",
+    "TYPOGRAPHY LOCK — highest priority for overlay wording, except ACT/CTA purchase buttons which must still be omitted.",
     "The first attached reference image is a finished marketplace poster whose overlay text must be transplanted unchanged.",
-    "Copy every visible title, subtitle, selling-point line, badge, CTA, price, and disclaimer character-for-character, including misspellings if any.",
+    "Copy every visible title, subtitle, selling-point line, informational badge, price, and disclaimer character-for-character, including misspellings if any. Do not transplant ACT/CTA purchase buttons.",
     "Keep the exact typeface, weight, size, color, tracking, outline, shadow, alignment, rotation, and pixel placement of all text.",
     "Do not translate, rewrite, restyle, resample, or move any letter. Do not replace overlay text with the section title or section copy.",
     "Only replace the product/object in the scene with the main product photo. Background, layout grid, decorative shapes, color blocks, and lighting stay as in the typography reference.",
@@ -102,19 +113,20 @@ export function buildSectionImagePrompt(
     `Visual prompt guidance: ${section.visualPrompt}`,
     lockTypography
       ? buildTypographyLockInstruction()
-      : "In-image wording source of truth is the section title and section copy. If visual prompt guidance contains different headlines, selling points, or CTA words, discard those words and use title/copy.",
+      : "In-image wording source of truth is the section title and section copy. If visual prompt guidance contains different headlines or selling points, discard those words and use title/copy. Drop any ACT/CTA purchase slogans even if they appear in title/copy.",
     buildReferenceText(referenceAssets),
     buildMainImageInstruction(referenceAssets),
     buildAspectInstruction(aspectRatio),
     lockTypography ? "" : buildTargetLanguageInstruction(contentLanguage),
     buildPhysicalRealityInstruction(),
+    buildNoActButtonInstruction(),
     "Generate one high-conversion mobile e-commerce visual for this section.",
     "The image should emphasize product clarity, composition hierarchy, material texture, and marketplace aesthetics.",
     lockTypography
-      ? "Overlay text is already locked from the reference poster. Do not add extra captions, watermarks, QR codes, or platform UI."
+      ? "Overlay text is already locked from the reference poster except ACT/CTA purchase buttons, which must be omitted. Do not add extra captions, watermarks, QR codes, or platform UI."
       : readNoTextInImage(section)
-        ? "This frame is a marketplace-compliant photograph. Do not render any captions, headlines, badges, watermarks, promotional stickers, QR codes, platform UI, or extra logos. Product only, plus real environment if the section requires it."
-        : "The headline, selling points, supporting copy, and CTA should be visually designed inside the image rather than left for later DOM text insertion.",
+        ? "This frame is a marketplace-compliant photograph. Do not render any captions, headlines, badges, watermarks, promotional stickers, QR codes, platform UI, extra logos, or ACT/CTA purchase buttons. Product only, plus real environment if the section requires it."
+        : "The headline, selling points, and supporting copy should be visually designed inside the image rather than left for later DOM text insertion. Do not add ACT/CTA purchase buttons.",
     "Make the result feel like finished commercial artwork, not a blank template.",
   ]
     .filter(Boolean)
@@ -146,7 +158,7 @@ export function buildImageEditPrompt(
   const targetLanguage = contentLanguageNamesForPrompt[normalizeContentLanguage(contentLanguage)];
   const modeInstruction =
     mode === "translate"
-      ? `This is an in-image translation task. Use the current image as the base and translate every visible user-facing word, headline, selling point, label, badge, CTA, note, and disclaimer into ${targetLanguage}. Preserve the original product, layout, composition, typography hierarchy, colors, lighting, and commercial style as much as possible. Do not add new claims or redesign the image except where text length requires natural typographic fitting. Remove the original-language text after replacing it with ${targetLanguage}.`
+      ? `This is an in-image translation task. Use the current image as the base and translate every visible user-facing word, headline, selling point, label, informational badge, note, and disclaimer into ${targetLanguage}. Remove ACT/CTA purchase buttons such as 立即购买 / 立即抢购 / Buy Now instead of translating them. Preserve the original product, layout, composition, typography hierarchy, colors, lighting, and commercial style as much as possible. Do not add new claims or redesign the image except where text length requires natural typographic fitting. Remove the original-language text after replacing it with ${targetLanguage}.`
       : mode === "enhance"
         ? "This is an enhancement task. Use the current image as the base, preserve the overall framing, and improve realism, texture, lighting, clarity, edge quality, and commercial polish."
         : "This is a repaint task. Use the current image as the base, keep the same product identity, and redesign the composition, atmosphere, styling, and conversion emphasis according to the section goal.";
@@ -181,7 +193,8 @@ export function buildSectionSvgLayoutPrompt(
     `Section goal: ${section.goal}`,
     `Section copy: ${section.copy}`,
     `Visual prompt guidance: ${section.visualPrompt}`,
-    "In-image wording source of truth is the section title and section copy. If visual prompt guidance contains different headlines, selling points, or CTA words, discard those words and use title/copy.",
+    "In-image wording source of truth is the section title and section copy. If visual prompt guidance contains different headlines or selling points, discard those words and use title/copy.",
+    buildNoActButtonInstruction(),
     `Target aspect ratio: ${aspectRatio}`,
     buildReferenceText(referenceAssets),
     "Use the main uploaded product image as the product identity reference when composing the layout.",

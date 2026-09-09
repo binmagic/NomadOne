@@ -369,8 +369,8 @@ export function PlannerWorkspace({ project }: PlannerWorkspaceProps) {
         copy: "",
         visualPrompt:
           kind === "hero"
-            ? "Primary Prompt: 生成一张 1:1 电商头图，突出商品主体、清晰标题、核心卖点和轻行动号召，图中文字直接由图像模型生成。\nEnglish Prompt: Create a square e-commerce hero image with strong product focus, clear headline, key selling copy, and a subtle CTA generated directly inside the image."
-            : "Primary Prompt: 生成一张电商详情页模块图，突出商品主体、清晰卖点和高级质感，图内直接排版标题、卖点和 CTA。\nEnglish Prompt: Create an e-commerce detail section image with strong product focus, clear selling points, and premium in-image marketing copy plus CTA.",
+            ? "Primary Prompt: 生成一张 1:1 电商头图，突出商品主体、清晰标题和核心卖点，图中文字直接由图像模型生成。禁止立即购买、立即抢购等 ACT 按钮。\nEnglish Prompt: Create a square e-commerce hero image with strong product focus, clear headline and key selling copy generated directly inside the image. No ACT/CTA purchase buttons."
+            : "Primary Prompt: 生成一张电商详情页模块图，突出商品主体、清晰卖点和高级质感，图内直接排版标题和卖点。禁止立即购买、立即抢购等 ACT 按钮。\nEnglish Prompt: Create an e-commerce detail section image with strong product focus, clear selling points, and premium in-image marketing copy. No ACT/CTA purchase buttons.",
         editableFields: {},
       }),
     });
@@ -604,7 +604,7 @@ export function PlannerWorkspace({ project }: PlannerWorkspaceProps) {
           <NoticeCard
             variant="info"
             title="生成时会自动遵循统一风格"
-            description="用户无需手动填写每张图的风格。Agent 会控制色彩、背景、光影、字体、CTA、商品结构和负面约束，保证整套详情页一致。"
+            description="用户无需手动填写每张图的风格。Agent 会控制色彩、背景、光影、字体、商品结构和负面约束，保证整套详情页一致。图内不会生成立即购买一类 ACT 按钮。"
           />
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
             <div className="rounded-2xl border border-border bg-muted/40 p-4">
