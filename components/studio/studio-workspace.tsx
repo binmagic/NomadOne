@@ -1,6 +1,6 @@
 /**
- * [INPUT]: 依赖 /api/studio/conversations、StudioPromptPicker/StudioTemplateHandoff、fileToBase64Payload、PageHeader/ConfirmDialog、lucide
- * [OUTPUT]: 对外提供 StudioWorkspace；发送后立即入队，轮询 PENDING 直到服务器写回图片；可从提示词卡片填入 composer
+ * [INPUT]: 依赖 /api/studio/conversations、StudioPromptPicker/StudioTemplateHandoff、ImageDropzone、fileToBase64Payload、PageHeader/ConfirmDialog、lucide
+ * [OUTPUT]: 对外提供 StudioWorkspace；发送后立即入队，轮询 PENDING 直到服务器写回图片；可从提示词卡片填入 composer；附图按钮点击与拖放共用 ImageDropzone
  * [POS]: components/studio 的唯一工作台，被 app/(app)/studio/page.tsx 挂载
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -21,6 +21,7 @@ import {
 import { toast } from "sonner";
 
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { ImageDropzone } from "@/components/shared/image-dropzone";
 import { PageHeader } from "@/components/shared/page-header";
 import { StudioPromptPicker } from "@/components/studio/studio-prompt-picker";
 import { StudioTemplateHandoff } from "@/components/studio/studio-template-handoff";
@@ -201,12 +202,11 @@ export function StudioWorkspace({ initialConversations }: { initialConversations
     }
   }
 
-  async function handleAttach(files: FileList | null) {
-    if (!files?.length) return;
+  async function handleAttach(files: File[]) {
+    if (!files.length) return;
     const next: Attachment[] = [...attachments];
-    for (const file of Array.from(files)) {
+    for (const file of files) {
       if (next.length >= 4) break;
-      if (!file.type.startsWith("image/")) continue;
       if (file.size > 4 * 1024 * 1024) {
         toast.error(`${file.name} 超过 4MB，请压缩后再附。`);
         continue;
@@ -423,10 +423,16 @@ export function StudioWorkspace({ initialConversations }: { initialConversations
             </div>
 
             <div className="flex items-end gap-2">
-              <label className={cn(buttonVariants({ variant: "outline", size: "sm" }), "h-11 cursor-pointer rounded-2xl px-3")}>
+              <ImageDropzone
+                multiple
+                disabled={sending || hasPending}
+                aria-label="附上图片"
+                className={cn(buttonVariants({ variant: "outline", size: "sm" }), "h-11 rounded-2xl px-3")}
+                activeClassName="border-slate-400 bg-slate-50 dark:border-white/30 dark:bg-white/10"
+                onFiles={(files) => void handleAttach(files)}
+              >
                 <ImagePlus className="h-4 w-4" />
-                <input type="file" accept="image/*" multiple className="hidden" onChange={(event) => void handleAttach(event.target.files)} />
-              </label>
+              </ImageDropzone>
               <StudioPromptPicker onApply={applyTemplate} />
               <Textarea
                 ref={composerRef}
@@ -451,7 +457,7 @@ export function StudioWorkspace({ initialConversations }: { initialConversations
             ) : lastFailed?.errorMessage && !sending ? (
               <p className="mt-2 text-xs leading-5 text-rose-500">{lastFailed.errorMessage}</p>
             ) : (
-              <p className="mt-2 text-xs leading-5 text-slate-400">Enter 发送，Shift+Enter 换行。最多附 4 张图。</p>
+              <p className="mt-2 text-xs leading-5 text-slate-400">Enter 发送，Shift+Enter 换行。点选或拖到左侧按钮，最多 4 张图。</p>
             )}
           </div>
         </section>
