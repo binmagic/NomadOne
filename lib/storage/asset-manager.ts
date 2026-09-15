@@ -1,7 +1,7 @@
 /**
  * [INPUT]: 依赖 Prisma ProductAsset、STORAGE_ROOT、nanoid 与 files 工具
- * [OUTPUT]: 对外提供商品素材落盘/读取，以及对话生图 studio/{userId}/{conversationId} 文件；saveGeneratedImage 的 sectionId 可空
- * [POS]: lib/storage 的唯一落盘入口。商品图走 ProductAsset；Studio 只写磁盘，路径记在 StudioMessage
+ * [OUTPUT]: 对外提供商品素材落盘/读取，对话生图 studio/{userId}/{conversationId} 文件，以及提示词效果图 prompts/{userId}/{templateId}；saveGeneratedImage 的 sectionId 可空
+ * [POS]: lib/storage 的唯一落盘入口。商品图走 ProductAsset；Studio 与提示词只写磁盘，路径分别记在 StudioMessage 与 PromptTemplate
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
@@ -29,6 +29,7 @@ export async function ensureStorageScaffold() {
     ensureDir(path.join(rootDir(), "generated")),
     ensureDir(path.join(rootDir(), "exports")),
     ensureDir(path.join(rootDir(), "studio")),
+    ensureDir(path.join(rootDir(), "prompts")),
   ]);
 }
 
@@ -251,6 +252,59 @@ export async function deleteStudioConversationFiles(userId: string, conversation
 
 export async function deleteStudioUserFiles(userId: string) {
   await fs.rm(studioDir(userId), { recursive: true, force: true });
+}
+
+function promptDir(userId: string, templateId?: string) {
+  const base = path.join(rootDir(), "prompts", userId);
+  return templateId ? path.join(base, templateId) : base;
+}
+
+function assertPhotoMime(mimeType: string) {
+  const normalized = mimeType.toLowerCase().split(";")[0]?.trim() ?? "";
+  if (normalized === "image/jpg") return "image/jpeg";
+  if (normalized === "image/png" || normalized === "image/jpeg" || normalized === "image/webp" || normalized === "image/gif") {
+    return normalized;
+  }
+  throw new Error("Image payload is invalid.");
+}
+
+export async function savePromptPreview(params: {
+  userId: string;
+  templateId: string;
+  source: { dataUrl: string };
+}) {
+  await ensureStorageScaffold();
+  const parsed = parseDataUrl(params.source.dataUrl);
+  const mimeType = assertPhotoMime(parsed.mimeType);
+  const dir = promptDir(params.userId, params.templateId);
+  await ensureDir(dir);
+
+  const fileName = `${Date.now()}-${nanoid(6)}.${extFromMime(mimeType)}`;
+  const relativePath = path.join("prompts", params.userId, params.templateId, fileName);
+  await fs.writeFile(path.join(rootDir(), relativePath), parsed.buffer);
+
+  return {
+    relativePath,
+    mimeType,
+  };
+}
+
+export async function deletePromptPreviewFile(relativePath: string) {
+  const root = rootDir();
+  const absolutePath = path.resolve(root, relativePath);
+  const normalized = relativePath.split(path.sep).join("/");
+  if (absolutePath === root || !absolutePath.startsWith(`${root}${path.sep}`) || !normalized.startsWith("prompts/")) {
+    throw new Error("File not found.");
+  }
+  await fs.rm(absolutePath, { force: true });
+}
+
+export async function deletePromptTemplateFiles(userId: string, templateId: string) {
+  await fs.rm(promptDir(userId, templateId), { recursive: true, force: true });
+}
+
+export async function deletePromptUserFiles(userId: string) {
+  await fs.rm(promptDir(userId), { recursive: true, force: true });
 }
 
 export async function storagePathToDataUrl(relativePath: string) {

@@ -1,7 +1,7 @@
 /**
  * [INPUT]: 依赖会话用户、assertProjectOwned、readStorageFile
  * [OUTPUT]: 对外提供 GET /api/files/*，按路径桶校验所有权后回文件字节
- * [POS]: 本地存储的只读出口。uploads/generated/exports 按项目归属；studio 第二段必须是当前 userId；未知桶直接 404
+ * [POS]: 本地存储的只读出口。uploads/generated/exports 按项目归属；studio 与 prompts 第二段必须是当前 userId；未知桶直接 404
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
@@ -33,7 +33,7 @@ async function assertFileOwned(relativePath: string, userId: string) {
     await assertProjectOwned(ownerKey, userId);
     return;
   }
-  if (bucket === "studio") {
+  if (bucket === "studio" || bucket === "prompts") {
     if (!ownerKey || ownerKey !== userId) {
       throw new Error("File not found.");
     }

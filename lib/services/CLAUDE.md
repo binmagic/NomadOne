@@ -15,6 +15,7 @@ visual-prompt-rewrite-service.ts: 按当前 title/goal/copy 重写单模块双�
 listing-set-service.ts: 商品套图按 userId 隔离；enqueueListingSetGenerate 建 LISTING_SET 项目后入队，后台 plan + generateSectionImage；主图槽位默认 noTextInImage，锁定参考图标题字体时第一张放开并写入 REFERENCE
 product-swap-service.ts: 实拍换品按 userId 隔离；enqueue 建 PRODUCT_SWAP 项目后入队；后台只走 editImage，scene=image，product=referenceImages；禁止 SVG / generateImage / 字体锁定
 studio-service.ts: 对话生图按 userId 隔离；enqueueStudioMessage 立刻写 PENDING，后台 withUser+凭证 ALS 跑 generateImage/editImage；生成/改图 prompt 注入禁止 ACT 购买按钮
+prompt-template-service.ts: 提示词卡片按 userId 隔离；findFirst({id,userId}) 找不到即 not found；创建必须带效果图
 export-service.ts: 导出前由路由层 assertProjectOwned
 provider-runtime.ts: 请求级 API Key ALS，与用户 ALS 正交，不存密钥
 
