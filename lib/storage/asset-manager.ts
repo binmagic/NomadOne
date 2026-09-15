@@ -1,7 +1,7 @@
 /**
  * [INPUT]: 依赖 Prisma ProductAsset、STORAGE_ROOT、nanoid 与 files 工具
- * [OUTPUT]: 对外提供商品素材落盘/读取，对话生图 studio/{userId}/{conversationId} 文件，以及提示词效果图 prompts/{userId}/{templateId}；saveGeneratedImage 的 sectionId 可空
- * [POS]: lib/storage 的唯一落盘入口。商品图走 ProductAsset；Studio 与提示词只写磁盘，路径分别记在 StudioMessage 与 PromptTemplate
+ * [OUTPUT]: 对外提供商品素材落盘/读取，对话生图 studio/{userId}/{conversationId} 文件，以及提示词效果图 prompts/{templateId}；saveGeneratedImage 的 sectionId 可空
+ * [POS]: lib/storage 的唯一落盘入口。商品图走 ProductAsset；Studio 只写磁盘路径记在 StudioMessage；提示词效果图记在 PromptTemplate，工作区共用
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
@@ -254,8 +254,8 @@ export async function deleteStudioUserFiles(userId: string) {
   await fs.rm(studioDir(userId), { recursive: true, force: true });
 }
 
-function promptDir(userId: string, templateId?: string) {
-  const base = path.join(rootDir(), "prompts", userId);
+function promptDir(templateId?: string) {
+  const base = path.join(rootDir(), "prompts");
   return templateId ? path.join(base, templateId) : base;
 }
 
@@ -269,18 +269,17 @@ function assertPhotoMime(mimeType: string) {
 }
 
 export async function savePromptPreview(params: {
-  userId: string;
   templateId: string;
   source: { dataUrl: string };
 }) {
   await ensureStorageScaffold();
   const parsed = parseDataUrl(params.source.dataUrl);
   const mimeType = assertPhotoMime(parsed.mimeType);
-  const dir = promptDir(params.userId, params.templateId);
+  const dir = promptDir(params.templateId);
   await ensureDir(dir);
 
   const fileName = `${Date.now()}-${nanoid(6)}.${extFromMime(mimeType)}`;
-  const relativePath = path.join("prompts", params.userId, params.templateId, fileName);
+  const relativePath = path.join("prompts", params.templateId, fileName);
   await fs.writeFile(path.join(rootDir(), relativePath), parsed.buffer);
 
   return {
@@ -299,12 +298,14 @@ export async function deletePromptPreviewFile(relativePath: string) {
   await fs.rm(absolutePath, { force: true });
 }
 
-export async function deletePromptTemplateFiles(userId: string, templateId: string) {
-  await fs.rm(promptDir(userId, templateId), { recursive: true, force: true });
-}
-
-export async function deletePromptUserFiles(userId: string) {
-  await fs.rm(promptDir(userId), { recursive: true, force: true });
+export async function deletePromptTemplateFiles(templateId: string, previewPath?: string) {
+  await fs.rm(promptDir(templateId), { recursive: true, force: true });
+  if (!previewPath) return;
+  const normalized = previewPath.split(path.sep).join("/");
+  const parent = normalized.split("/").slice(0, -1).join("/");
+  if (parent.startsWith("prompts/") && parent !== `prompts/${templateId}`) {
+    await fs.rm(path.join(rootDir(), parent), { recursive: true, force: true });
+  }
 }
 
 export async function storagePathToDataUrl(relativePath: string) {

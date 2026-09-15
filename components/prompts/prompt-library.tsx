@@ -108,7 +108,7 @@ export function PromptLibrary({ initialTemplates }: { initialTemplates: PromptTe
       <PageHeader
         eyebrow="提示词"
         title="效果图卡片，点进对话就用"
-        description="把常用出图说明存成卡片。卡片图是效果示意，不会当作参考图发出。"
+        description="工作区共用一套卡片，谁都可以新建、改、删。卡片图是效果示意，不会当作参考图发出。"
         actions={
           <Button type="button" className="rounded-2xl" onClick={openCreate}>
             <Sparkles className="mr-2 h-4 w-4" />
@@ -123,7 +123,7 @@ export function PromptLibrary({ initialTemplates }: { initialTemplates: PromptTe
             <Sparkles className="h-6 w-6 text-slate-700 dark:text-slate-200" />
           </div>
           <p className="text-lg font-semibold tracking-[-0.03em] text-slate-950 dark:text-white">还没有提示词</p>
-          <p className="mt-2 max-w-md text-sm leading-6 text-slate-500 dark:text-slate-400">先存一张效果图和说明，之后在对话生图里一键填入。</p>
+          <p className="mt-2 max-w-md text-sm leading-6 text-slate-500 dark:text-slate-400">先存一张效果图和说明，工作区里的人都能在对话生图里选用。</p>
           <Button type="button" className="mt-5 rounded-2xl" onClick={openCreate}>
             新建提示词
           </Button>

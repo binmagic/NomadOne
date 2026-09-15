@@ -92,7 +92,6 @@ model User {
   projects             Project[]
   providers            ProviderConfig[]
   studioConversations  StudioConversation[]
-  promptTemplates      PromptTemplate[]
 }
 
 model AppSettings {
@@ -297,13 +296,11 @@ model StudioMessage {
 
 model PromptTemplate {
   id          String   @id @default(cuid())
-  userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   title       String
   prompt      String
   previewPath String
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  @@index([userId, updatedAt])
+  @@index([updatedAt])
 }
