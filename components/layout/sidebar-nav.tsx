@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 next/link、lucide 图标、当前用户是否 OWNER
- * [OUTPUT]: 对外提供 SidebarNav，按路径高亮；含对话生图 /studio、商品套图 /listing-set、实拍换品 /product-swap；OWNER 才看到用户管理与设置
+ * [OUTPUT]: 对外提供 SidebarNav，按路径高亮；含对话生图 /studio、提示词 /prompts、商品套图 /listing-set、实拍换品 /product-swap；OWNER 才看到用户管理与设置
  * [POS]: layout 的侧栏导航，被 AppShell 挂载
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -9,7 +9,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ArrowLeftRight, BookOpenText, FolderKanban, GalleryVerticalEnd, History, Images, LayoutGrid, SlidersHorizontal, Users, Wand2 } from "lucide-react";
+import { ArrowLeftRight, BookOpenText, FolderKanban, GalleryVerticalEnd, History, Images, LayoutGrid, SlidersHorizontal, Sparkles, Users, Wand2 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
@@ -18,6 +18,7 @@ const navItems = [
   { href: "/batch-create", label: "批量创建", icon: Images },
   { href: "/history", label: "历史记录", icon: History },
   { href: "/studio", label: "对话生图", icon: Wand2 },
+  { href: "/prompts", label: "提示词", icon: Sparkles },
   { href: "/listing-set", label: "商品套图", icon: LayoutGrid },
   { href: "/product-swap", label: "实拍换品", icon: ArrowLeftRight },
   { href: "/xiaohongshu/plan", label: "小红书图文", icon: BookOpenText },

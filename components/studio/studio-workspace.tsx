@@ -1,13 +1,13 @@
 /**
- * [INPUT]: 依赖 /api/studio/conversations、fileToBase64Payload、PageHeader/ConfirmDialog、lucide
- * [OUTPUT]: 对外提供 StudioWorkspace；发送后立即入队，轮询 PENDING 直到服务器写回图片
+ * [INPUT]: 依赖 /api/studio/conversations、StudioPromptPicker/StudioTemplateHandoff、fileToBase64Payload、PageHeader/ConfirmDialog、lucide
+ * [OUTPUT]: 对外提供 StudioWorkspace；发送后立即入队，轮询 PENDING 直到服务器写回图片；可从提示词卡片填入 composer
  * [POS]: components/studio 的唯一工作台，被 app/(app)/studio/page.tsx 挂载
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Download,
   ImagePlus,
@@ -22,6 +22,8 @@ import { toast } from "sonner";
 
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { PageHeader } from "@/components/shared/page-header";
+import { StudioPromptPicker } from "@/components/studio/studio-prompt-picker";
+import { StudioTemplateHandoff } from "@/components/studio/studio-template-handoff";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { cn, formatDate } from "@/lib/utils";
@@ -85,6 +87,12 @@ export function StudioWorkspace({ initialConversations }: { initialConversations
   const [lightbox, setLightbox] = useState<string | null>(null);
   const scrollerRef = useRef<HTMLDivElement>(null);
   const composerRef = useRef<HTMLTextAreaElement>(null);
+
+  const applyTemplate = useCallback((text: string) => {
+    setPrompt(text);
+    composerRef.current?.focus();
+    toast.success("已填入提示词，确认后发送");
+  }, []);
 
   const messages = active?.messages ?? [];
   const hasPending = useMemo(() => messages.some((item) => item.status === "PENDING"), [messages]);
@@ -419,6 +427,7 @@ export function StudioWorkspace({ initialConversations }: { initialConversations
                 <ImagePlus className="h-4 w-4" />
                 <input type="file" accept="image/*" multiple className="hidden" onChange={(event) => void handleAttach(event.target.files)} />
               </label>
+              <StudioPromptPicker onApply={applyTemplate} />
               <Textarea
                 ref={composerRef}
                 value={prompt}
@@ -468,6 +477,10 @@ export function StudioWorkspace({ initialConversations }: { initialConversations
           <img src={lightbox} alt="" className="max-h-full max-w-full rounded-3xl object-contain shadow-2xl" />
         </button>
       ) : null}
+
+      <Suspense fallback={null}>
+        <StudioTemplateHandoff onApply={applyTemplate} />
+      </Suspense>
     </div>
   );
 }
