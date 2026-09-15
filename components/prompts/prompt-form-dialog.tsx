@@ -126,7 +126,7 @@ export function PromptFormDialog({
           <div className="min-w-0 space-y-1">
             <h3 className="text-lg font-semibold text-slate-950 dark:text-white">{isCreate ? "新建提示词" : "编辑提示词"}</h3>
             <p className="text-sm leading-6 text-slate-500 dark:text-slate-400">
-              {isCreate ? "效果图会印在卡片上，选用时只填入说明文字。" : "不换图就保留当前效果图。"}
+              {isCreate ? "效果图会印在卡片上，工作区所有人都能选用。" : "不换图就保留当前效果图。"}
             </p>
           </div>
         </div>
