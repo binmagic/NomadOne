@@ -1,12 +1,13 @@
 /**
- * [INPUT]: 依赖 getProviderAdapter、adapter.generateImage/editImage、studio 落盘、Prisma StudioConversation、用户/凭证 ALS、generation.ts 的 buildNoActButtonInstruction
+ * [INPUT]: 依赖 getProviderAdapter、adapter.generateImage/editImage、studio 落盘、Prisma StudioConversation、用户/凭证 ALS、generation.ts 的 buildNoActButtonInstruction、forbidden-word-service
  * [OUTPUT]: 对外提供会话 CRUD 与 enqueueStudioMessage；出图在进程内后台跑完，页面只轮询
- * [POS]: lib/services 的对话生图内核。不碰 Project/Section；PENDING 消息即任务状态；出图默认禁止 ACT 购买按钮
+ * [POS]: lib/services 的对话生图内核。不碰 Project/Section；PENDING 消息即任务状态；出图默认禁止 ACT 购买按钮，并注入工作区违禁词
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
 import type { ImageGenerationResult } from "@/lib/ai/provider-client";
 import { buildNoActButtonInstruction } from "@/lib/ai/prompts/generation";
+import { applyForbiddenWordsToPrompt } from "@/lib/services/forbidden-word-service";
 import { withUser } from "@/lib/auth/request-user";
 import { prisma } from "@/lib/db/prisma";
 import { getProviderAdapter } from "@/lib/services/provider-service";
@@ -317,13 +318,18 @@ async function runStudioTurn(pendingMessageId: string, userId: string, preferred
         ? unique([preferred, ...getImageEditModels(provider)])
         : unique([preferred, ...getImageGenerationModels(provider)]);
 
+    const prompt =
+      mode === "edit"
+        ? await applyForbiddenWordsToPrompt(buildEditPrompt(userTurn.content))
+        : await applyForbiddenWordsToPrompt(buildGeneratePrompt(userTurn.content, aspectRatio));
+
     const generated = await runImageModel(
       models,
       (model) =>
         mode === "edit"
           ? adapter.editImage({
               model,
-              prompt: buildEditPrompt(userTurn.content),
+              prompt,
               image: sourceImage ?? "",
               size: getOutputSize(aspectRatio),
               aspectRatio,
@@ -332,7 +338,7 @@ async function runStudioTurn(pendingMessageId: string, userId: string, preferred
             })
           : adapter.generateImage({
               model,
-              prompt: buildGeneratePrompt(userTurn.content, aspectRatio),
+              prompt,
               size: getOutputSize(aspectRatio),
               aspectRatio,
               referenceImages,

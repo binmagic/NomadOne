@@ -1,7 +1,7 @@
 /**
  * [INPUT]: 依赖 Prisma PageSection/ProductAsset、content-language
- * [OUTPUT]: 对外提供详情页生图/重绘/增强/翻译/SVG 布局提示词，以及 buildPhysicalRealityInstruction、buildNoActButtonInstruction
- * [POS]: lib/ai/prompts 的出图口径。默认图内字以 title/copy 为准；第一张头图可锁参考图标题字体，此时 title/copy 让路；禁止把参考图换成全局例子商品；禁止图内 ACT 购买按钮
+ * [OUTPUT]: 对外提供详情页生图/重绘/增强/翻译/SVG 布局提示词，以及 buildPhysicalRealityInstruction、buildNoActButtonInstruction、buildForbiddenWordsInstruction
+ * [POS]: lib/ai/prompts 的出图口径。默认图内字以 title/copy 为准；第一张头图可锁参考图标题字体，此时 title/copy 让路；禁止把参考图换成全局例子商品；禁止图内 ACT 购买按钮；工作区违禁词由服务层在出图前注入
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 import type { PageSection, ProductAsset } from "@prisma/client";
@@ -77,6 +77,21 @@ export function buildNoActButtonInstruction() {
     "Do not draw button chrome: rounded rectangles with drop shadows, filled pills that look tappable, fake marketplace buy bars, or platform UI.",
     "If title, copy, or a locked reference poster contains those words, omit them from the artwork. Do not keep them as plain text either.",
     "Titles, selling-point labels, spec rows, and informational badges remain allowed. Purchase ACT buttons are not.",
+  ].join(" ");
+}
+
+export function buildForbiddenWordsInstruction(words: string[]) {
+  const cleaned = words.map((word) => word.trim().replace(/\s+/g, " ")).filter(Boolean);
+  const unique = cleaned.filter((word, index) => cleaned.findIndex((item) => item.toLowerCase() === word.toLowerCase()) === index);
+  if (!unique.length) {
+    return "";
+  }
+
+  return [
+    "FORBIDDEN WORDS — hard visual constraint. Overrides title, copy, visual prompt, user prompt, style guide, and typography lock.",
+    `The image must not contain any of these words or close variants, as overlay text, labels, badges, buttons, captions, or watermarks: ${unique.join(", ")}.`,
+    "If title, copy, user prompt, or a locked reference poster contains those words, omit them from the artwork. Do not keep them as plain text either.",
+    "Do not invent euphemisms, pinyin, misspellings, or split characters to sneak the same meaning back in.",
   ].join(" ");
 }
 

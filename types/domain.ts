@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 无运行时依赖，只导出领域常量和公开类型
- * [OUTPUT]: 对外提供平台/风格/能力/角色标签，以及 Studio 对话生图、PromptTemplate 提示词卡片、商品套图、实拍换品的视图类型
+ * [OUTPUT]: 对外提供平台/风格/能力/角色标签，以及 Studio 对话生图、PromptTemplate 提示词卡片、ForbiddenWord 违禁词、商品套图、实拍换品的视图类型
  * [POS]: types/ 的唯一公开契约，被页面、校验和服务同时消费
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -174,6 +174,13 @@ export interface PromptTemplateView {
   title: string;
   prompt: string;
   previewUrl: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ForbiddenWordView {
+  id: string;
+  word: string;
   createdAt: string;
   updatedAt: string;
 }

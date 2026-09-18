@@ -1,12 +1,13 @@
 /**
- * [INPUT]: 依赖 visual-prompt schema、ProviderAdapter、content-language、visual-style-guide、generation.ts 的 buildNoActButtonInstruction
+ * [INPUT]: 依赖 visual-prompt schema、ProviderAdapter、content-language、visual-style-guide、generation.ts 的 buildNoActButtonInstruction、forbidden-word-service
  * [OUTPUT]: 对外提供 buildVisualPromptWithAgent，把模块任务扩成生图用长 prompt
- * [POS]: lib/services 的出图前扩写层。默认图内字跟 title/copy；锁参考图标题字体时禁止改字；主图身份不可被例子 SKU 替换；扩写时必须带上禁止 ACT 购买按钮
+ * [POS]: lib/services 的出图前扩写层。默认图内字跟 title/copy；锁参考图标题字体时禁止改字；主图身份不可被例子 SKU 替换；扩写时必须带上禁止 ACT 购买按钮和工作区违禁词
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 import type { ProductAsset } from "@prisma/client";
 
-import { buildNoActButtonInstruction } from "@/lib/ai/prompts/generation";
+import { buildForbiddenWordsInstruction, buildNoActButtonInstruction } from "@/lib/ai/prompts/generation";
+import { listForbiddenWordValues } from "@/lib/services/forbidden-word-service";
 import { visualPromptAgentSchema } from "@/lib/ai/schemas/visual-prompt";
 import type { ProviderAdapter } from "@/lib/ai/provider-client";
 import type { ContentLanguage } from "@/lib/utils/content-language";
@@ -84,13 +85,14 @@ function summarizeReferences(input: BuildVisualPromptInput) {
     .join("\n");
 }
 
-function buildAgentPrompt(input: BuildVisualPromptInput) {
+function buildAgentPrompt(input: BuildVisualPromptInput, forbiddenWords: string[]) {
   const modeGuide =
     input.mode === "xiaohongshu_page"
       ? `Create a production-grade prompt for one Xiaohongshu ${input.aspectRatio} carousel image.`
       : input.mode === "image_edit"
         ? "Create a production-grade prompt for editing an existing image while preserving identity and composition continuity."
         : "Create a production-grade prompt for one e-commerce product detail page image.";
+  const forbiddenInstruction = buildForbiddenWordsInstruction(forbiddenWords);
 
   return [
     "You are the system-level Visual Prompt Agent for an AI commerce design workflow.",
@@ -123,6 +125,7 @@ function buildAgentPrompt(input: BuildVisualPromptInput) {
     "- Avoid vague words alone. Make every visual choice concrete.",
     "- For e-commerce sections, hero images and detail images must look like one cohesive commercial page: consistent color palette, background system, lighting direction, shadow softness, typography, icon/badge language, spacing, and product rendering.",
     `- ${buildNoActButtonInstruction()}`,
+    forbiddenInstruction ? `- ${forbiddenInstruction}` : "",
     "- If reference images are attached, analyze them as geometry/style references, but do not describe them as 'uploaded image' inside the final artwork.",
     "",
     "Task context:",
@@ -154,7 +157,7 @@ function buildAgentPrompt(input: BuildVisualPromptInput) {
   ].join("\n");
 }
 
-function buildFallbackPrompt(input: BuildVisualPromptInput) {
+function buildFallbackPrompt(input: BuildVisualPromptInput, forbiddenWords: string[]) {
   const referenceInstruction =
     (input.referenceImages?.length ?? 0) > 0 || (input.referenceAssets?.length ?? 0) > 0
       ? "Use the reference images as the source of truth for product identity, proportions, material, color, key openings, buttons, nozzles, handles, cables, logos and recognisable details."
@@ -164,6 +167,7 @@ function buildFallbackPrompt(input: BuildVisualPromptInput) {
     input.mode === "xiaohongshu_page"
       ? `Design a native Xiaohongshu ${input.aspectRatio} carousel page with strong cover-like readability, useful content hierarchy, generous safe margins, and polished social-media typography.`
       : "Design a high-conversion e-commerce product visual that feels like finished marketplace artwork, not a blank poster or wireframe.";
+  const forbiddenInstruction = buildForbiddenWordsInstruction(forbiddenWords);
 
   return [
     platformInstruction,
@@ -179,7 +183,7 @@ function buildFallbackPrompt(input: BuildVisualPromptInput) {
       ? "Overlay typography is locked to the first reference poster. Copy every visible word and font exactly. Do not invent new headlines from title/copy."
       : "Typography must be designed inside the image with clear hierarchy: large readable title, short supporting copy, and 2-4 concise labels or selling points placed away from product edges. Do not add ACT/CTA purchase buttons.",
     "Respect real-world physics and product mechanics: correct airflow/light/liquid direction, visible cable exit points, realistic support surfaces, gravity, contact shadows, aligned hinges/openings/drawers/buttons/handles.",
-    `Negative constraints: no garbled text, no over-crowded typography, no distorted product geometry, no floating unsupported product, no cables merging into tables or walls, no reversed airflow, no impossible reflections, no hands passing through solid parts. ${buildNoActButtonInstruction()}`,
+    `Negative constraints: no garbled text, no over-crowded typography, no distorted product geometry, no floating unsupported product, no cables merging into tables or walls, no reversed airflow, no impossible reflections, no hands passing through solid parts. ${buildNoActButtonInstruction()}${forbiddenInstruction ? ` ${forbiddenInstruction}` : ""}`,
     "Final output should be a polished, commercially usable image with crisp details and no explanatory UI chrome.",
   ].join("\n");
 }
@@ -190,16 +194,17 @@ function shouldFallback(error: unknown) {
 }
 
 export async function buildVisualPromptWithAgent(input: BuildVisualPromptInput) {
+  const forbiddenWords = await listForbiddenWordValues();
   const model = pickPromptModel(input.provider, (input.referenceImages?.length ?? 0) > 0);
   if (!model) {
-    return buildFallbackPrompt(input);
+    return buildFallbackPrompt(input, forbiddenWords);
   }
 
   try {
     const result = await input.adapter.generateStructured({
       model,
       systemPrompt: "Return strict JSON only.",
-      userPrompt: buildAgentPrompt(input),
+      userPrompt: buildAgentPrompt(input, forbiddenWords),
       schema: visualPromptAgentSchema,
       images: input.referenceImages?.slice(0, 3),
       timeoutMs: VISUAL_PROMPT_AGENT_TIMEOUT_MS,
@@ -216,7 +221,7 @@ export async function buildVisualPromptWithAgent(input: BuildVisualPromptInput) 
       .join("\n\n");
   } catch (error) {
     if (shouldFallback(error)) {
-      return buildFallbackPrompt(input);
+      return buildFallbackPrompt(input, forbiddenWords);
     }
     throw error;
   }
