@@ -3,8 +3,8 @@
 Next.js 14 + Prisma SQLite + Electron + OpenAI-compatible Provider
 
 <directory>
-app/ - App Router 页面与 API（子目录: (app) 工作台含 studio 对话生图 / prompts 提示词卡片 / listing-set 商品套图 / product-swap 实拍换品, (auth) 登录, api）
-components/ - UI 与工作流组件（子目录: layout, auth, projects, providers, editor, monitor, studio, prompts, listing-set, product-swap, analysis, planner）
+app/ - App Router 页面与 API（子目录: (app) 工作台含 studio 对话生图 / prompts 提示词卡片 / forbidden-words 违禁词 / listing-set 商品套图 / product-swap 实拍换品, (auth) 登录, api）
+components/ - UI 与工作流组件（子目录: layout, auth, projects, providers, editor, monitor, studio, prompts, forbidden-words, listing-set, product-swap, analysis, planner）
 lib/ - 服务端内核（子目录: auth, services, ai, db, monitor, storage, validations）
 prisma/ - SQLite schema 与迁移
 desktop/ - Electron 主进程
@@ -17,7 +17,7 @@ scripts/ - Prisma 安全迁移、桌面打包与远程发布
 package.json - Next 14.2 / Prisma 6 / Electron 桌面打包
 .env.example - DATABASE_URL、APP_SECRET
 middleware.ts - HMAC 会话门禁；未登录页 302 /login，API 401
-prisma/schema.prisma - User + AppSettings.allowRegister + AppSettings.modelTimeoutMs + Project.userId + Project.kind(DETAIL_PAGE|LISTING_SET|PRODUCT_SWAP) + ProviderConfig.userId + StudioConversation.userId + PromptTemplate 工作区共用
+prisma/schema.prisma - User + AppSettings.allowRegister + AppSettings.modelTimeoutMs + Project.userId + Project.kind(DETAIL_PAGE|LISTING_SET|PRODUCT_SWAP) + ProviderConfig.userId + StudioConversation.userId + PromptTemplate 工作区共用 + ForbiddenWord 工作区共用
 Dockerfile - Node 24 standalone 镜像（SWR 前缀拉 docker.io/library/node）；入口先跑自定义 SQLite 迁移
 docker-compose.yml - 单副本 nomadone，数据卷 /data
 </config>

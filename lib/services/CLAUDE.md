@@ -1,7 +1,7 @@
 # lib/services/
 > L2 | 父级: /CLAUDE.md
 
-业务服务按 userId 隔离，提示词卡片除外：登录用户共用一张库。列表/创建显式传 userId；按 id 读取走 assertProjectOwned 或 findFirst({ id, userId })。别人的项目/会话返回 not found。
+业务服务按 userId 隔离，提示词卡片和违禁词除外：登录用户共用一张库。列表/创建显式传 userId；按 id 读取走 assertProjectOwned 或 findFirst({ id, userId })。别人的项目/会话返回 not found。
 
 成员清单
 app-settings.ts: 工作区单行设置；allowRegister 默认 false；modelTimeoutMs 默认 120000，被适配器当作文本/图像调用超时
@@ -9,13 +9,14 @@ project-service.ts: 项目 CRUD 与所有权断言，listProjects 排除系统�
 provider-service.ts: Provider 按用户隔离；isActive 的 updateMany 必须 where userId；getProviderAdapter 读 ALS 并把 AppSettings.modelTimeoutMs 注入适配器；保存时把分配 ID 合成为模型档案，capabilities.__source=custom 的手填模型在重新发现后仍保留
 workflow-task-service.ts: 每用户一个 __nomadone_system_task__ 占位项目；后台任务 withUser + provider credentials 双 ALS；retry 含 LISTING_SET_GENERATE / PRODUCT_SWAP_GENERATE
 task-service.ts: getOwnedTask 经 project.userId 过滤；内部 getTask 仍按 id
-generation-service.ts / planner-service.ts / analysis-service.ts / xiaohongshu-service.ts / listing-set-service.ts: 通过 getProviderAdapter 间接收到当前用户；分析写快照必须 merge previewConfig；规划张数读 preview-config 契约；第一张 HERO 可按 generationSettings.preserveHeroTypographyFromReference 把 REFERENCE 放在参考图首位并锁标题字体；出图与规划兜底禁止 ACT 购买按钮
-visual-prompt-agent.ts: 出图前扩写必须复用 buildNoActButtonInstruction，禁止把 CTA 写回 finalPrompt
+generation-service.ts / planner-service.ts / analysis-service.ts / xiaohongshu-service.ts / listing-set-service.ts: 通过 getProviderAdapter 间接收到当前用户；分析写快照必须 merge previewConfig；规划张数读 preview-config 契约；第一张 HERO 可按 generationSettings.preserveHeroTypographyFromReference 把 REFERENCE 放在参考图首位并锁标题字体；出图与规划兜底禁止 ACT 购买按钮；出图前 applyForbiddenWordsToPrompt
+visual-prompt-agent.ts: 出图前扩写必须复用 buildNoActButtonInstruction，禁止把 CTA 写回 finalPrompt；扩写时带上工作区违禁词
 visual-prompt-rewrite-service.ts: 按当前 title/goal/copy 重写单模块双语 visualPrompt，经 updateSection 写回；失败时双语兜底，不整页规划、不写生图 Agent 长 prompt
 listing-set-service.ts: 商品套图按 userId 隔离；enqueueListingSetGenerate 建 LISTING_SET 项目后入队，后台 plan + generateSectionImage；主图槽位默认 noTextInImage，锁定参考图标题字体时第一张放开并写入 REFERENCE
-product-swap-service.ts: 实拍换品按 userId 隔离；enqueue 建 PRODUCT_SWAP 项目后入队；后台只走 editImage，scene=image，product=referenceImages；禁止 SVG / generateImage / 字体锁定
-studio-service.ts: 对话生图按 userId 隔离；enqueueStudioMessage 立刻写 PENDING，后台 withUser+凭证 ALS 跑 generateImage/editImage；生成/改图 prompt 注入禁止 ACT 购买按钮
+product-swap-service.ts: 实拍换品按 userId 隔离；enqueue 建 PRODUCT_SWAP 项目后入队；后台只走 editImage，scene=image，product=referenceImages；禁止 SVG / generateImage / 字体锁定；出图前注入违禁词
+studio-service.ts: 对话生图按 userId 隔离；enqueueStudioMessage 立刻写 PENDING，后台 withUser+凭证 ALS 跑 generateImage/editImage；生成/改图 prompt 注入禁止 ACT 购买按钮和工作区违禁词
 prompt-template-service.ts: 提示词卡片工作区共用，不按 userId 隔离；创建必须带效果图
+forbidden-word-service.ts: 违禁词工作区共用，不按 userId 隔离；applyForbiddenWordsToPrompt 给生图最后一公里注入
 export-service.ts: 导出前由路由层 assertProjectOwned
 provider-runtime.ts: 请求级 API Key ALS，与用户 ALS 正交，不存密钥
 

@@ -1,13 +1,14 @@
 /**
- * [INPUT]: 依赖 xiaohongshuPlanSchema、getProviderAdapter、buildVisualPromptWithAgent、generation.ts 的 buildNoActButtonInstruction
+ * [INPUT]: 依赖 xiaohongshuPlanSchema、getProviderAdapter、buildVisualPromptWithAgent、generation.ts 的 buildNoActButtonInstruction、forbidden-word-service
  * [OUTPUT]: 对外提供小红书图文规划与按页生图
- * [POS]: lib/services 的小红书图文内核。规划出标题/版式，出图走 visual-prompt-agent 而非详情页 section 管线；禁止购买 ACT 按钮
+ * [POS]: lib/services 的小红书图文内核。规划出标题/版式，出图走 visual-prompt-agent 而非详情页 section 管线；禁止购买 ACT 按钮，并注入工作区违禁词
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 import { xiaohongshuPlanSchema, type XiaohongshuPlan } from "@/lib/ai/schemas/xiaohongshu";
 import { buildNoActButtonInstruction } from "@/lib/ai/prompts/generation";
 import type { ImageGenerationResult } from "@/lib/ai/provider-client";
 import { getProviderAdapter } from "@/lib/services/provider-service";
+import { applyForbiddenWordsToPrompt } from "@/lib/services/forbidden-word-service";
 import { buildVisualPromptWithAgent } from "@/lib/services/visual-prompt-agent";
 
 export type XiaohongshuImageAspectRatio = "1:1" | "3:4" | "9:16";
@@ -387,29 +388,31 @@ export async function generateXiaohongshuImages(
   const images = [];
   for (const page of pages) {
     const basePrompt = buildPageImagePrompt(plan, page, imageAspectRatio);
-    const prompt = await buildVisualPromptWithAgent({
-      provider,
-      adapter,
-      mode: "xiaohongshu_page",
-      title: page.title,
-      goal: `为小红书选题“${plan.topic}”生成第 ${page.pageNumber} 页图文。`,
-      copy: [page.subtitle, page.body, `整组洞察：${plan.coreInsight}`].filter(Boolean).join("\n"),
-      basePrompt,
-      aspectRatio: imageAspectRatio,
-      contentLanguage: "zh-CN",
-      referenceImages,
-      productContext: {
-        topic: plan.topic,
-        audience: plan.audience,
-        coreInsight: plan.coreInsight,
-        coverTitle: plan.coverTitle,
-        caption: plan.caption,
-        hashtags: plan.hashtags,
-        currentPage: page,
-        imageAspectRatio,
-      },
-      operation: "xiaohongshu_visual_prompt_agent_generate",
-    });
+    const prompt = await applyForbiddenWordsToPrompt(
+      await buildVisualPromptWithAgent({
+        provider,
+        adapter,
+        mode: "xiaohongshu_page",
+        title: page.title,
+        goal: `为小红书选题“${plan.topic}”生成第 ${page.pageNumber} 页图文。`,
+        copy: [page.subtitle, page.body, `整组洞察：${plan.coreInsight}`].filter(Boolean).join("\n"),
+        basePrompt,
+        aspectRatio: imageAspectRatio,
+        contentLanguage: "zh-CN",
+        referenceImages,
+        productContext: {
+          topic: plan.topic,
+          audience: plan.audience,
+          coreInsight: plan.coreInsight,
+          coverTitle: plan.coverTitle,
+          caption: plan.caption,
+          hashtags: plan.hashtags,
+          currentPage: page,
+          imageAspectRatio,
+        },
+        operation: "xiaohongshu_visual_prompt_agent_generate",
+      }),
+    );
     const generated = await runImageModel(
       models,
       (model) =>
@@ -458,24 +461,26 @@ export async function editXiaohongshuImage(input: {
   ]
     .filter(Boolean)
     .join("\n");
-  const prompt = await buildVisualPromptWithAgent({
-    provider,
-    adapter,
-    mode: "image_edit",
-    title: input.page?.title ?? "小红书图文单页修改",
-    goal: "按用户修改意见精修当前小红书图文页，保留原图主体和整体风格。",
-    copy: input.page?.body ?? "",
-    basePrompt,
-    aspectRatio: imageAspectRatio,
-    contentLanguage: "zh-CN",
-    referenceImages: [input.imageUrl],
-    productContext: {
-      page: input.page ?? null,
-      userEditInstruction: input.prompt,
-      imageAspectRatio,
-    },
-    operation: "xiaohongshu_visual_prompt_agent_edit",
-  });
+  const prompt = await applyForbiddenWordsToPrompt(
+    await buildVisualPromptWithAgent({
+      provider,
+      adapter,
+      mode: "image_edit",
+      title: input.page?.title ?? "小红书图文单页修改",
+      goal: "按用户修改意见精修当前小红书图文页，保留原图主体和整体风格。",
+      copy: input.page?.body ?? "",
+      basePrompt,
+      aspectRatio: imageAspectRatio,
+      contentLanguage: "zh-CN",
+      referenceImages: [input.imageUrl],
+      productContext: {
+        page: input.page ?? null,
+        userEditInstruction: input.prompt,
+        imageAspectRatio,
+      },
+      operation: "xiaohongshu_visual_prompt_agent_edit",
+    }),
+  );
 
   const edited = await runImageModel(
     models,

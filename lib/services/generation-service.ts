@@ -1,7 +1,7 @@
 /**
- * [INPUT]: 依赖 Prisma PageSection/ProductAsset、prompts 生图口径、visual-prompt-agent、generation-settings
+ * [INPUT]: 依赖 Prisma PageSection/ProductAsset、prompts 生图口径、visual-prompt-agent、generation-settings、forbidden-word-service
  * [OUTPUT]: 对外提供 generateSectionImage / regenerateSectionImage / editSectionImage
- * [POS]: lib/services 的详情页出图内核。第一张 HERO 可把 REFERENCE 放到参考图首位并锁标题字体
+ * [POS]: lib/services 的详情页出图内核。第一张 HERO 可把 REFERENCE 放到参考图首位并锁标题字体；出图前注入工作区违禁词
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 import { z } from "zod";
@@ -16,6 +16,7 @@ import {
 import { prisma } from "@/lib/db/prisma";
 import { isOpenAiCompatibleImageModel } from "@/lib/ai/capability-detector";
 import { getProviderAdapter } from "@/lib/services/provider-service";
+import { applyForbiddenWordsToPrompt } from "@/lib/services/forbidden-word-service";
 import { completeTask, createTask, failTask, findRecentRunningTask } from "@/lib/services/task-service";
 import { buildVisualPromptWithAgent } from "@/lib/services/visual-prompt-agent";
 import { readStorageFile, saveGeneratedImage } from "@/lib/storage/asset-manager";
@@ -413,12 +414,13 @@ async function generateWithFallback(params: {
   operation: string;
 }) {
   const errors: string[] = [];
+  const prompt = await applyForbiddenWordsToPrompt(params.prompt);
 
   for (const model of params.candidateModels) {
     try {
       const generated = await params.adapter.generateImage({
         model,
-        prompt: params.prompt,
+        prompt,
         size: params.size,
         aspectRatio: params.aspectRatio,
         referenceImages: params.referenceImages,
@@ -460,12 +462,13 @@ async function editWithFallback(params: {
   operation: string;
 }) {
   const errors: string[] = [];
+  const prompt = await applyForbiddenWordsToPrompt(params.prompt);
 
   for (const model of params.candidateModels) {
     try {
       const generated = await params.adapter.editImage({
         model,
-        prompt: params.prompt,
+        prompt,
         image: params.image,
         size: params.size,
         aspectRatio: params.aspectRatio,
@@ -616,11 +619,13 @@ async function generateSvgFallback(params: {
   const layoutSpec = await generateSvgLayoutSpec({
     adapter: params.adapter,
     candidateModels: modelCandidates,
-    userPrompt: buildSectionSvgLayoutPrompt(
-      params.section,
-      params.referenceAssets as ProductAsset[],
-      params.aspectRatio,
-      params.contentLanguage,
+    userPrompt: await applyForbiddenWordsToPrompt(
+      buildSectionSvgLayoutPrompt(
+        params.section,
+        params.referenceAssets as ProductAsset[],
+        params.aspectRatio,
+        params.contentLanguage,
+      ),
     ),
     images: imageInputs,
     projectId: params.section.projectId,

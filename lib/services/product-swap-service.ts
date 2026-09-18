@@ -1,7 +1,7 @@
 /**
- * [INPUT]: 依赖 Prisma Project(kind=PRODUCT_SWAP)、adapter.editImage、product-swap prompt、用户/凭证 ALS
+ * [INPUT]: 依赖 Prisma Project(kind=PRODUCT_SWAP)、adapter.editImage、product-swap prompt、用户/凭证 ALS、forbidden-word-service
  * [OUTPUT]: 对外提供 enqueueProductSwapGenerate、enqueueProductSwapRegenerate、runProductSwapGenerateTask、list/get 视图
- * [POS]: lib/services 的实拍换品内核。场景图走 editImage.image，本品图走 referenceImages；不经 generateSectionImage / Visual Prompt Agent / SVG
+ * [POS]: lib/services 的实拍换品内核。场景图走 editImage.image，本品图走 referenceImages；不经 generateSectionImage / Visual Prompt Agent / SVG；出图前注入工作区违禁词
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
@@ -12,6 +12,7 @@ import { buildProductSwapPrompt, buildProductSwapRegeneratePrompt } from "@/lib/
 import { withUser } from "@/lib/auth/request-user";
 import { prisma } from "@/lib/db/prisma";
 import { getProviderAdapter } from "@/lib/services/provider-service";
+import { applyForbiddenWordsToPrompt } from "@/lib/services/forbidden-word-service";
 import { runWithProviderCredentials, type RequestProviderCredentials } from "@/lib/services/provider-runtime";
 import {
   assertTaskNotCanceled,
@@ -333,7 +334,9 @@ export async function runProductSwapGenerateTask(taskId: string) {
     }
 
     const meta = readProductSwapMeta(project.modelSnapshot);
-    const prompt = regenerate ? buildProductSwapRegeneratePrompt(meta.notes) : buildProductSwapPrompt(meta.notes);
+    const prompt = await applyForbiddenWordsToPrompt(
+      regenerate ? buildProductSwapRegeneratePrompt(meta.notes) : buildProductSwapPrompt(meta.notes),
+    );
     const sceneDataUrl = await assetToDataUrl(scene);
     const productDataUrl = await assetToDataUrl(product);
     const editArgs = toSwapEditArgs(sceneDataUrl, productDataUrl);
